@@ -3,55 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Spider Pro - الرئيسية</title>
+    <title>لوحة التحكم - Spider Pro</title>
     <link rel="stylesheet" href="/style.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #0f0f15; color: #fff; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 20px; background: #181824; border-radius: 12px; margin-bottom: 30px; }
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        .user-avatar { width: 45px; height: 45px; border-radius: 50%; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 40px; }
+        .stat-card { background: #181824; padding: 25px; border-radius: 12px; text-align: center; border: 1px solid #282838; }
+        .stat-card h3 { color: #888; font-size: 0.9em; margin-bottom: 10px; }
+        .stat-card p { font-size: 1.8em; font-weight: bold; color: #5865F2; }
+        .guilds-title { margin-bottom: 20px; text-align: center; font-size: 1.4em; }
+        .guilds-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .guild-card { background: #181824; padding: 20px; border-radius: 12px; border: 1px solid #282838; display: flex; flex-direction: column; align-items: center; gap: 15px; text-align: center; }
+        .guild-icon { width: 70px; height: 70px; border-radius: 50%; background: #282838; display: flex; justify-content: center; align-items: center; font-weight: bold; }
+        .guild-name { font-size: 1.1em; font-weight: bold; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .btn { padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; transition: 0.2s; width: 100%; display: block; }
+        .btn-manage { background: #5865F2; color: white; }
+        .btn-manage:hover { background: #4752c4; }
+        .btn-add { background: #2f3136; color: #b9bbbe; border: 1px solid #4f545c; }
+        .btn-add:hover { background: #36393f; color: white; }
+        .status-badge { font-size: 0.85em; font-weight: bold; }
+        .status-badge.online { color: #2ecc71; }
+        .status-badge.offline { color: #e74c3c; }
+        .logout-btn { background: #ed4245; color: white; padding: 8px 18px; border-radius: 6px; text-decoration: none; font-size: 0.9em; }
+    </style>
 </head>
 <body>
+
     <div class="header">
-        <div class="logo">Dashboard <span>Spider Pro</span></div>
-        <div style="display:flex; align-items:center; gap:12px;">
-            <img src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>.png" style="width:38px; height:38px; border-radius:50%; border:2px solid var(--accent-color);">
-            <span style="font-weight:700; font-size:14px;"><%= user.username %></span>
-            <a href="/logout" style="color:var(--danger-color); text-decoration:none; font-size:13px; margin-right:10px;">خروج</a>
+        <div class="user-info">
+            <img class="user-avatar" src="<%= user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : 'https://cdn.discordapp.com/embed/avatars/0.png' %>" alt="User Avatar">
+            <span><strong><%= user.username %></strong></span>
+        </div>
+        <h2>Dashboard Spider Pro</h2>
+        <a href="/logout" class="logout-btn">خروج</a>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>YOUR WALLET</h3>
+            <p>Balance: $<%= userBalance %></p>
+        </div>
+        <div class="stat-card">
+            <h3>GLOBAL RANKING</h3>
+            <p>Rank: #<%= userRank %></p>
+        </div>
+        <div class="stat-card">
+            <h3>BOT SERVERS</h3>
+            <p>Active Guilds <%= activeGuildsCount %></p>
         </div>
     </div>
 
-    <div class="main-content" style="max-width:1200px; margin:0 auto; width:100%;">
-        <!-- كروت الرصيد والمعلومات المحدثة بالإنجليزية -->
-        <div class="pb-grid" style="margin-bottom:30px;">
-            <div class="pb-card" style="background: linear-gradient(135deg, #111622 0%, #1a2336 100%);">
-                <span class="input-label" style="color:var(--accent-color);">YOUR WALLET</span>
-                <h2 style="font-size:28px; color:#fff; margin-top:5px;">Balance: $<%= userBalance.toLocaleString() %></h2>
-            </div>
-            <div class="pb-card" style="background: linear-gradient(135deg, #111622 0%, #1a2336 100%);">
-                <span class="input-label" style="color:#10b981;">GLOBAL RANKING</span>
-                <h2 style="font-size:28px; color:#fff; margin-top:5px;">Rank: #<%= userRank %></h2>
-            </div>
-            <div class="pb-card" style="background: linear-gradient(135deg, #111622 0%, #1a2336 100%);">
-                <span class="input-label" style="color:#f59e0b;">BOT SERVERS</span>
-                <h2 style="font-size:28px; color:#fff; margin-top:5px;"><%= guilds.filter(g => g.botIn).length %> Active Guilds</h2>
-            </div>
-        </div>
+    <h3 class="guilds-title">اختر السيرفر للبدء بالتحكم والإدارة</h3>
 
-        <h3 style="margin-bottom:20px; color:#fff;">اختر السيرفر للبدء بالتحكم والإدارة</h3>
-        <div class="pb-grid">
-            <% guilds.forEach(g => { %>
-                <div class="pb-card" style="display:flex; justify-content:space-between; align-items:center;">
-                    <div style="display:flex; align-items:center; gap:12px;">
-                        <img src="<%= g.icon ? 'https://cdn.discordapp.com/icons/' + g.id + '/' + g.icon + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png' %>" style="width:48px; height:48px; border-radius:12px;">
-                        <div>
-                            <h4 style="color:#fff; font-size:15px;"><%= g.name %></h4>
-                            <span style="font-size:11px; color:var(--text-secondary);"><%= g.botIn ? '✅ البوت متاح' : '❌ البوت غير موجود' %></span>
-                        </div>
-                    </div>
-                    <% if (g.botIn) { %>
-                        <a href="/dashboard/<%= g.id %>" class="btn-primary" style="padding:8px 16px; font-size:13px;">إدارة السيرفر</a>
-                    <% } else { %>
-                        <a href="https://discord.com/api/oauth2/authorize?client_id=1534954572743704717&permissions=8&scope=bot" target="_blank" class="btn-primary" style="padding:8px 16px; font-size:13px; background:#334155;">إضافة البوت</a>
-                    <% } %>
-                </div>
-            <% }); %>
-        </div>
+    <div class="guilds-grid">
+        <% guilds.forEach(guild => { %>
+            <div class="guild-card">
+                <% if (guild.icon) { %>
+                    <img class="guild-icon" src="https://cdn.discordapp.com/icons/<%= guild.id %>/<%= guild.icon %>.png" alt="Guild Icon">
+                <% } else { %>
+                    <div class="guild-icon"><%= guild.name.charAt(0) %></div>
+                <% } %>
+
+                <div class="guild-name"><%= guild.name %></div>
+
+                <% if (guild.hasBot) { %>
+                    <a href="/dashboard/<%= guild.id %>" class="btn btn-manage">تعديل الإعدادات</a>
+                    <span class="status-badge online">✅ البوت موجود</span>
+                <% } else { %>
+                    <a href="https://discord.com/oauth2/authorize?client_id=1534954572743704717&scope=bot&permissions=8&guild_id=<%= guild.id %>" target="_blank" class="btn btn-add">إضافة البوت</a>
+                    <span class="status-badge offline">❌ البوت غير موجود</span>
+                <% } %>
+            </div>
+        <% }) %>
     </div>
+
 </body>
 </html>

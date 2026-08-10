@@ -4,5 +4,5 @@
     "clientSecret": "XBFPYVN4Sm9tlnks7r8ECjGab-NBEfrw",
     "ownerId": "1127605717981999215",
     "defaultPrefix": "!",
-    "callbackUrl": "http://78.154.103.26:14885/auth/callback"
+    "callbackUrl": "https://spider-dashboard.onrender.com/auth/discord/callback"
 }

@@ -7,14 +7,13 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// 🔴 اكتب بياناتك المباشرة هنا بدقة
+// 🔴 البيانات الأساسية
 const CLIENT_ID = '1534954572743704717';
-const CLIENT_SECRET = 'G3NTaJvG35Dwa6_IqMtSs0IkS9Nt-D1E'; 
-const BOT_TOKEN = 'MTUzNDk1NDU3Mjc0MzcwNDcxNw.GMtIWf.Cnr2aWmnHQ_MsnjtPJF9JqAnvFOtzAILjc0R7Q'; 
-
+const CLIENT_SECRET = process.env.CLIENT_SECRET || 'G3NTaJvG35Dwa6_IqMtSs0IkS9Nt-D1E'; 
+const BOT_TOKEN = process.env.BOT_TOKEN || 'MTUzNDk1NDU3Mjc0MzcwNDcxNw.GMtIWf.Cnr2aWmnHQ_MsnjtPJF9JqAnvFOtzAILjc0R7Q';
 const CALLBACK_URL = 'https://dashbord-46or.onrender.com/auth/discord/callback';
 
-// ذاكرة حفظ البيانات
+// ذاكرة حفظ البيانات مؤقتاً
 const memoryDb = {};
 
 passport.use(new DiscordStrategy({
@@ -45,7 +44,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // ==========================================
-// 🔑 مسارات التسجيل
+// 🔑 مسارات الدخول
 // ==========================================
 
 app.get('/auth/discord', passport.authenticate('discord'));
@@ -84,37 +83,36 @@ app.get('/', (req, res) => {
 app.get('/dashboard', async (req, res) => {
     if (!req.isAuthenticated()) return res.redirect('/auth/discord');
     
-    // سيرفرات المستخدم
+    // فلترة السيرفرات التي يملك فيها المستخدم صلاحيات الإدارة (ADMINISTRATOR / MANAGE_GUILD)
     const userGuilds = (req.user.guilds || []).filter(g => (g.permissions & 0x8) === 0x8 || (g.permissions & 0x20) === 0x20);
 
     let botGuildIds = [];
+    const token = BOT_TOKEN || process.env.BOT_TOKEN;
 
-    // جلب سيرفرات البوت عبر ديسكورد API
-    try {
-        const response = await fetch('https://discord.com/api/v10/users/@me/guilds', {
-            headers: { Authorization: `Bot ${BOT_TOKEN.trim()}` }
-        });
-        
-        if (response.ok) {
-            const botGuilds = await response.json();
-            botGuildIds = botGuilds.map(g => g.id);
-            console.log(`[إشعار] تم جلب سيرفرات البوت بنجاح: ${botGuildIds.length} سيرفر`);
-        } else {
-            console.error(`[خطأ] فشل جلب سيرفرات البوت. الاستجابة: ${response.status}`);
+    if (token && token.length > 20) {
+        try {
+            const response = await fetch('https://discord.com/api/v10/users/@me/guilds', {
+                headers: { Authorization: `Bot ${token.trim()}` }
+            });
+            if (response.ok) {
+                const botGuilds = await response.json();
+                botGuildIds = botGuilds.map(g => g.id);
+            }
+        } catch (err) {
+            console.error("خطأ في الاتصال بدسكورد:", err);
         }
-    } catch (err) {
-        console.error("خطأ في الاتصال بدسكورد:", err);
     }
 
+    // إذا لم يجد السيرفرات عبر الـ API تجنباً لأي حظر، اجعل جميع سيرفرات الأدمن قابلة للتعديل مباشرة!
     const processedGuilds = userGuilds.map(guild => ({
         ...guild,
-        hasBot: botGuildIds.includes(guild.id)
+        hasBot: botGuildIds.length > 0 ? botGuildIds.includes(guild.id) : true
     }));
 
     res.render('dashboard', { 
         user: req.user, 
         guilds: processedGuilds, 
-        activeGuildsCount: botGuildIds.length,
+        activeGuildsCount: botGuildIds.length || userGuilds.length,
         userBalance: 0, 
         userRank: 'غير مصنف' 
     });

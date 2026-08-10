@@ -7,13 +7,11 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// 🔴 البيانات الأساسية
-const CLIENT_ID = '1534954572743704717';
-const CLIENT_SECRET = process.env.CLIENT_SECRET || 'G3NTaJvG35Dwa6_IqMtSs0IkS9Nt-D1E'; 
-const BOT_TOKEN = process.env.BOT_TOKEN || 'MTUzNDk1NDU3Mjc0MzcwNDcxNw.GMtIWf.Cnr2aWmnHQ_MsnjtPJF9JqAnvFOtzAILjc0R7Q';
+const CLIENT_ID = process.env.CLIENT_ID || '1534954572743704717';
+const CLIENT_SECRET = process.env.CLIENT_SECRET;
+const BOT_TOKEN = process.env.BOT_TOKEN;
 const CALLBACK_URL = 'https://dashbord-46or.onrender.com/auth/discord/callback';
 
-// ذاكرة حفظ البيانات مؤقتاً
 const memoryDb = {};
 
 passport.use(new DiscordStrategy({
@@ -42,10 +40,6 @@ app.use(session({
 
 app.use(passport.initialize());
 app.use(passport.session());
-
-// ==========================================
-// 🔑 مسارات الدخول
-// ==========================================
 
 app.get('/auth/discord', passport.authenticate('discord'));
 
@@ -76,34 +70,26 @@ app.get('/', (req, res) => {
     `);
 });
 
-// ==========================================
-// 📊 الداشبورد الرئيسي
-// ==========================================
-
 app.get('/dashboard', async (req, res) => {
     if (!req.isAuthenticated()) return res.redirect('/auth/discord');
     
-    // فلترة السيرفرات التي يملك فيها المستخدم صلاحيات الإدارة (ADMINISTRATOR / MANAGE_GUILD)
     const userGuilds = (req.user.guilds || []).filter(g => (g.permissions & 0x8) === 0x8 || (g.permissions & 0x20) === 0x20);
 
     let botGuildIds = [];
-    const token = BOT_TOKEN || process.env.BOT_TOKEN;
-
-    if (token && token.length > 20) {
+    if (BOT_TOKEN) {
         try {
             const response = await fetch('https://discord.com/api/v10/users/@me/guilds', {
-                headers: { Authorization: `Bot ${token.trim()}` }
+                headers: { Authorization: `Bot ${BOT_TOKEN.trim()}` }
             });
             if (response.ok) {
                 const botGuilds = await response.json();
                 botGuildIds = botGuilds.map(g => g.id);
             }
         } catch (err) {
-            console.error("خطأ في الاتصال بدسكورد:", err);
+            console.error("خطأ جلب السيرفرات:", err);
         }
     }
 
-    // إذا لم يجد السيرفرات عبر الـ API تجنباً لأي حظر، اجعل جميع سيرفرات الأدمن قابلة للتعديل مباشرة!
     const processedGuilds = userGuilds.map(guild => ({
         ...guild,
         hasBot: botGuildIds.length > 0 ? botGuildIds.includes(guild.id) : true

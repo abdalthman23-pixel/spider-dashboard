@@ -1,7 +1,7 @@
 {
-    "token": "1",
+    "token": "MTUzNDk1NDU3Mjc0MzcwNDcxNw.GACNMo.CamucCWxF-bTI0fukCugi11gRRkpoaPkkBsuOY",
     "clientId": "1534954572743704717",
-    "clientSecret": "XBFPYVN4Sm9tlnks7r8ECjGab-NBEfrw",
+    "clientSecret": "eS50DjqE-dNWovcOEKNHCymi9ta9EaFZ",
     "ownerId": "1127605717981999215",
     "defaultPrefix": "!",
     "callbackURL": "https://spider-dashboard.onrender.com/auth/discord/callback"

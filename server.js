@@ -6,6 +6,14 @@ const { Client, GatewayIntentBits } = require('discord.js');
 const path = require('path');
 const fs = require('fs');
 
+// جلب الإعدادات من config.json إذا كانت موجودة
+let config = {};
+try {
+    config = require('./config.json');
+} catch (e) {
+    config = {};
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -19,11 +27,11 @@ const client = new Client({
     ]
 });
 
-// استبدل بمعلومات بوتك الفعلي أو استخدم المتغيرات البيئية
-const CLIENT_ID = 'YOUR_CLIENT_ID';
-const CLIENT_SECRET = 'YOUR_CLIENT_SECRET';
-const CALLBACK_URL = 'http://localhost:3000/auth/discord/callback';
-const BOT_TOKEN = 'YOUR_BOT_TOKEN';
+// قراءة البيانات من البيئة (Render) أو من ملف config.json
+const CLIENT_ID = process.env.CLIENT_ID || config.clientID || config.client_id || 'YOUR_CLIENT_ID';
+const CLIENT_SECRET = process.env.CLIENT_SECRET || config.clientSecret || config.client_secret || 'YOUR_CLIENT_SECRET';
+const CALLBACK_URL = process.env.CALLBACK_URL || config.callbackURL || 'http://localhost:3000/auth/discord/callback';
+const BOT_TOKEN = process.env.token || process.env.TOKEN || process.env.DISCORD_TOKEN || config.token;
 
 // إعدادات الباسبورت (Passport Discord Strategy)
 passport.use(new DiscordStrategy({
@@ -144,5 +152,11 @@ app.post('/api/save-all/:guildId', (req, res) => {
     res.json({ success: true });
 });
 
-client.login(BOT_TOKEN);
+// تسجيل دخول البوت والبدء
+if (BOT_TOKEN) {
+    client.login(BOT_TOKEN).catch(err => console.error("❌ فشل تسجيل دخول البوت:", err.message));
+} else {
+    console.error("⚠️ لم يتم العثور على Bot Token!");
+}
+
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));

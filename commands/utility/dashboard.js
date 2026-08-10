@@ -5,7 +5,16 @@ module.exports = {
         .setName('dashboard')
         .setDescription('رابط لوحة تحكم البوت'),
     async execute(interaction) {
-        const dashboardUrl = 'http://78.154.103.26:14885';
+        // نأخذ الرابط من client.dashboardUrl (مضبوط مركزياً في index.js من config.json)
+        // بدل ما يكون مكتوب يدوياً هنا، حتى ما نحتاج نعدل كل أمر عند تغيير الاستضافة
+        const dashboardUrl = interaction.client.dashboardUrl;
+
+        if (!dashboardUrl || dashboardUrl.includes('اكتب_')) {
+            return interaction.reply({
+                content: '⚠️ رابط لوحة التحكم غير مضبوط بشكل صحيح في إعدادات البوت (dashboardUrl). تواصل مع مطور البوت.',
+                ephemeral: true
+            });
+        }
 
         const embed = new EmbedBuilder()
             .setColor('#2b2d31')

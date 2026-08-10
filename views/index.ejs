@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>Spider Pro Dashboard | الداشبورد الرسمي</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="header">
+        <div class="logo">🕷️ SPIDER PRO</div>
+        <% if (user) { %>
+            <a href="/dashboard" class="btn-neon">لوحة التحكم</a>
+        <% } else { %>
+            <a href="/auth/discord" class="btn-neon">تسجيل الدخول بـ Discord</a>
+        <% } %>
+    </div>
+
+    <div class="container" style="text-align: center; margin-top: 100px;">
+        <h1 style="font-size: 48px; text-shadow: 0 0 15px var(--neon-blue); margin-bottom: 20px;">التحكم الكامل بـ Spider Pro</h1>
+        <p style="font-size: 20px; color: #a0a5b5; margin-bottom: 40px;">خصص اختصارات الأوامر، أضف الكلمات السريعة، وأدر سيرفرك بلمسة نيونية ساحرة!</p>
+        <a href="/auth/discord" class="btn-neon" style="font-size: 22px; padding: 15px 40px;">دخول الداشبورد الآن 🚀</a>
+    </div>
+</body>
+</html>

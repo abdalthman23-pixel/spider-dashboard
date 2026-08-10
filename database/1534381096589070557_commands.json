@@ -1,0 +1,358 @@
+{
+    "balance": {
+        "enabled": true,
+        "aliases": [
+            "sp"
+        ],
+        "roles": [
+            "admin"
+        ],
+        "channel": "1534552340072370197"
+    },
+    "top": {
+        "enabled": true,
+        "aliases": [
+            "توب"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "1534552340072370197"
+    },
+    "roles-list": {
+        "enabled": true,
+        "aliases": [
+            "roles-list"
+        ],
+        "roles": [
+            "admin"
+        ],
+        "channel": "1534552340072370197"
+    },
+    "server-info": {
+        "enabled": true,
+        "aliases": [
+            "server-info"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "1534552340072370197"
+    },
+    "gcancel": {
+        "enabled": true,
+        "aliases": [
+            "gcancel"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "gend": {
+        "enabled": true,
+        "aliases": [
+            "gend"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "greroll": {
+        "enabled": true,
+        "aliases": [
+            "greroll"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "gstart": {
+        "enabled": true,
+        "aliases": [
+            "gstart"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "clear-warns": {
+        "enabled": true,
+        "aliases": [
+            "clear-warns"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "clear": {
+        "enabled": true,
+        "aliases": [
+            "clear"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "hide": {
+        "enabled": true,
+        "aliases": [
+            "hide"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "lock": {
+        "enabled": true,
+        "aliases": [
+            "lock"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "remove-warn": {
+        "enabled": true,
+        "aliases": [
+            "remove-warn"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "role-add": {
+        "enabled": true,
+        "aliases": [
+            "role-add"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "role-remove": {
+        "enabled": true,
+        "aliases": [
+            "role-remove"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "setnickname": {
+        "enabled": true,
+        "aliases": [
+            "setnickname"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "show": {
+        "enabled": true,
+        "aliases": [
+            "show"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "slowmode": {
+        "enabled": true,
+        "aliases": [
+            "slowmode"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "unban": {
+        "enabled": true,
+        "aliases": [
+            "unban"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "unlock": {
+        "enabled": true,
+        "aliases": [
+            "unlock"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "untimeout": {
+        "enabled": true,
+        "aliases": [
+            "untimeout"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "warnings": {
+        "enabled": true,
+        "aliases": [
+            "warnings"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "add-pounds": {
+        "enabled": true,
+        "aliases": [
+            "add-pounds"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "setup": {
+        "enabled": true,
+        "aliases": [
+            "setup"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "setup-protection": {
+        "enabled": true,
+        "aliases": [
+            "setup-protection"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "welcome-setup": {
+        "enabled": true,
+        "aliases": [
+            "welcome-setup"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "add-emoji": {
+        "enabled": true,
+        "aliases": [
+            "add-emoji"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "dashboard": {
+        "enabled": true,
+        "aliases": [
+            "dashboard"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "help": {
+        "enabled": true,
+        "aliases": [
+            "help"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "set-role-icon": {
+        "enabled": true,
+        "aliases": [
+            "set-role-icon"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "vkick": {
+        "enabled": true,
+        "aliases": [
+            "vkick"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "vmove": {
+        "enabled": true,
+        "aliases": [
+            "vmove"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "vmoveall": {
+        "enabled": true,
+        "aliases": [
+            "vmoveall"
+        ],
+        "roles": [
+            "everyone"
+        ],
+        "channel": "all"
+    },
+    "kick": {
+        "enabled": true,
+        "aliases": [
+            "طرد"
+        ],
+        "roles": [
+            "admin"
+        ],
+        "channel": "all"
+    },
+    "timeout": {
+        "enabled": true,
+        "aliases": [
+            "timeout"
+        ],
+        "roles": [],
+        "channel": "all"
+    },
+    "warn": {
+        "enabled": true,
+        "aliases": [
+            "warn"
+        ],
+        "roles": [],
+        "channel": "all"
+    }
+}

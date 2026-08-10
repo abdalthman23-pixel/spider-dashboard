@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة السيرفر - <%= guild.name %></title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <input type="hidden" id="guildIdHolder" value="<%= guild.id %>">
+
+    <!-- إشعار الحفظ النيون -->
+    <div id="toastNotification" class="toast-notification">
+        <span style="font-size: 18px;">✅</span>
+        <span>تم حفظ التعديلات بنجاح</span>
+    </div>
+
+    <div class="header">
+        <div class="logo">Dashboard <span>Spider Pro</span></div>
+        <a href="/dashboard" class="btn-primary" style="padding: 6px 18px; font-size: 13px;">الرئيسية</a>
+    </div>
+
+    <div class="app-container">
+        <!-- 1️⃣ سيرفرات البوت -->
+        <div class="sidebar-servers">
+            <% guilds.forEach(g => { %>
+                <% if (g.botIn) { %>
+                    <a href="/dashboard/<%= g.id %>" class="server-icon-btn <%= g.id === guild.id ? 'active' : '' %>" title="<%= g.name %>">
+                        <img src="<%= g.icon ? 'https://cdn.discordapp.com/icons/' + g.id + '/' + g.icon + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png' %>">
+                    </a>
+                <% } %>
+            <% }); %>
+        </div>
+
+        <!-- 2️⃣ قائمة الأقسام -->
+        <div class="sidebar-menu">
+            <div class="menu-title">إدارة الأوامر</div>
+            <button class="menu-item active" onclick="switchTab('generalCmds', this)">🌐 الأوامر العامة</button>
+            <button class="menu-item" onclick="switchTab('adminCmds', this)">⚡ أوامر الإدارة</button>
+            
+            <div class="menu-title">الأدوات والتخصيص</div>
+            <button class="menu-item" onclick="switchTab('embedMakerTab', this)">📝 صانع الـ Embed</button>
+            <button class="menu-item" onclick="switchTab('welcomeTab', this)">🖼️ الترحيب الاحترافي</button>
+            <button class="menu-item" onclick="switchTab('repliesTab', this)">💬 الردود التلقائية</button>
+
+            <div class="menu-title">الأمان واللوج</div>
+            <button class="menu-item" onclick="switchTab('protectionTab', this)">🛡️ الحماية والعقوبات</button>
+            <button class="menu-item" onclick="switchTab('logsTab', this)">📋 نظام اللوجات</button>
+
+            <div style="margin-top: auto; padding-top: 15px; text-align: center; border-top: 1px solid var(--border-color);">
+                <span style="font-size: 10px; color: var(--text-secondary); opacity: 0.6; letter-spacing: 0.5px;">Developed By Spider Team</span>
+            </div>
+        </div>
+
+        <!-- 3️⃣ ساحة العمل الوسطى -->
+        <div class="main-content">
+
+            <!-- 🌐 1. الأوامر العامة -->
+            <div id="generalCmds" class="tab-section active">
+                <h2 style="margin-bottom: 20px; color:#fff;">🌐 الأوامر العامة واختصاراتها</h2>
+                <% commandsList.filter(c => !['kick','ban','timeout','warn'].includes(c.name)).forEach(cmd => { %>
+                    <% 
+                        const conf = (commandsConfig && commandsConfig[cmd.name]) || {};
+                        const aliases = conf.aliases || [cmd.name];
+                        const selectedRoles = conf.roles || ['everyone'];
+                        const enabled = conf.enabled !== undefined ? conf.enabled : true;
+                    %>
+                    <div class="pb-card" data-cmd="<%= cmd.name %>">
+                        <div class="pb-card-header">
+                            <div>
+                                <h4 style="color: var(--accent-color);">/ <%= cmd.name %></h4>
+                                <p><%= cmd.description %></p>
+                            </div>
+                            <label class="switch"><input type="checkbox" class="cmd-status" <%= enabled ? 'checked' : '' %>><span class="slider"></span></label>
+                        </div>
+                        <div class="pb-grid">
+                            <div>
+                                <label class="input-label">الاختصارات (مسافة للإضافة)</label>
+                                <div class="tags-container" onclick="this.querySelector('.tag-input').focus()">
+                                    <% aliases.forEach(a => { %>
+                                        <span class="tag-badge"><%= a %><span onclick="this.parentElement.remove()">×</span></span>
+                                    <% }); %>
+                                    <input type="text" class="tag-input" placeholder="اكتب واضغط مسافة..." onkeydown="handleTagInput(event)">
+                                </div>
+                            </div>
+
+                            <!-- 🌟 مربعات اختيار الرتب الشفافة -->
+                            <div>
+                                <label class="input-label">الرتب المسموحة</label>
+                                <div class="tags-container roles-container" style="margin-bottom:6px;">
+                                    <% selectedRoles.forEach(rId => { %>
+                                        <% 
+                                            let roleName = '🌐 الجميع';
+                                            if(rId === 'admin') roleName = '🛡️ الإداريون';
+                                            else {
+                                                const found = roles.find(r => r.id === rId);
+                                                if(found) roleName = found.name;
+                                            }
+                                        %>
+                                        <span class="role-badge" data-role-id="<%= rId %>"><%= roleName %><span onclick="this.parentElement.remove()">×</span></span>
+                                    <% }); %>
+                                </div>
+                                <select class="pb-input" onchange="addRoleTag(this)">
+                                    <option value="" disabled selected>➕ اختر رتبة لإضافتها...</option>
+                                    <option value="everyone">🌐 الجميع</option>
+                                    <option value="admin">🛡️ الإداريون</option>
+                                    <% roles.forEach(r => { %>
+                                        <option value="<%= r.id %>"><%= r.name %></option>
+                                    <% }); %>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="input-label">الروم المسموح</label>
+                                <select class="pb-input cmd-channel">
+                                    <option value="all" <%= (conf.channel||'all')==='all'?'selected':'' %>>📌 جميع الرومات</option>
+                                    <% channels.forEach(ch => { %>
+                                        <option value="<%= ch.id %>" <%= conf.channel===ch.id?'selected':'' %>># <%= ch.name %></option>
+                                    <% }); %>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+
+            <!-- ⚡ 2. أوامر الإدارة -->
+            <div id="adminCmds" class="tab-section">
+                <h2 style="margin-bottom: 20px; color:#fff;">⚡ أوامر الإدارة (طرد، باند، تحذير)</h2>
+                <% commandsList.filter(c => ['kick','ban','timeout','warn'].includes(c.name)).forEach(cmd => { %>
+                    <% 
+                        const conf = (commandsConfig && commandsConfig[cmd.name]) || {};
+                        const aliases = conf.aliases || [cmd.name];
+                        const selectedRoles = conf.roles || ['admin'];
+                        const enabled = conf.enabled !== undefined ? conf.enabled : true;
+                    %>
+                    <div class="pb-card" data-cmd="<%= cmd.name %>">
+                        <div class="pb-card-header">
+                            <div>
+                                <h4 style="color: var(--accent-color);">/ <%= cmd.name %></h4>
+                                <p><%= cmd.description %></p>
+                            </div>
+                            <label class="switch"><input type="checkbox" class="cmd-status" <%= enabled ? 'checked' : '' %>><span class="slider"></span></label>
+                        </div>
+                        <div class="pb-grid">
+                            <div>
+                                <label class="input-label">الاختصارات (مسافة للإضافة)</label>
+                                <div class="tags-container" onclick="this.querySelector('.tag-input').focus()">
+                                    <% aliases.forEach(a => { %>
+                                        <span class="tag-badge"><%= a %><span onclick="this.parentElement.remove()">×</span></span>
+                                    <% }); %>
+                                    <input type="text" class="tag-input" placeholder="اكتب واضغط مسافة..." onkeydown="handleTagInput(event)">
+                                </div>
+                            </div>
+
+                            <!-- 🌟 مربعات اختيار الرتب الشفافة لأوامر الإدارة -->
+                            <div>
+                                <label class="input-label">الرتب المسموحة</label>
+                                <div class="tags-container roles-container" style="margin-bottom:6px;">
+                                    <% selectedRoles.forEach(rId => { %>
+                                        <% 
+                                            let roleName = '🛡️ الإداريون';
+                                            if(rId === 'everyone') roleName = '🌐 الجميع';
+                                            else {
+                                                const found = roles.find(r => r.id === rId);
+                                                if(found) roleName = found.name;
+                                            }
+                                        %>
+                                        <span class="role-badge" data-role-id="<%= rId %>"><%= roleName %><span onclick="this.parentElement.remove()">×</span></span>
+                                    <% }); %>
+                                </div>
+                                <select class="pb-input" onchange="addRoleTag(this)">
+                                    <option value="" disabled selected>➕ اختر رتبة لإضافتها...</option>
+                                    <option value="admin">🛡️ الإداريون فقط</option>
+                                    <% roles.forEach(r => { %>
+                                        <option value="<%= r.id %>"><%= r.name %></option>
+                                    <% }); %>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="input-label">الروم المسموح</label>
+                                <select class="pb-input cmd-channel">
+                                    <option value="all" <%= (conf.channel||'all')==='all'?'selected':'' %>>📌 جميع الرومات</option>
+                                    <% channels.forEach(ch => { %>
+                                        <option value="<%= ch.id %>" <%= conf.channel===ch.id?'selected':'' %>># <%= ch.name %></option>
+                                    <% }); %>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+
+            <!-- 📝 3. صانع الـ Embed -->
+            <div id="embedMakerTab" class="tab-section">
+                <h2 style="margin-bottom: 20px; color:#fff;">📝 صانع وإنشاء Embed جديد</h2>
+                <div class="pb-card" style="max-width: 750px;">
+                    <div style="margin-bottom:15px;">
+                        <label class="input-label">الروم المراد إرسال الـ Embed فيه</label>
+                        <select id="embedChannel" class="pb-input">
+                            <% channels.forEach(ch => { %>
+                                <option value="<%= ch.id %>"># <%= ch.name %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom:15px;">
+                        <label class="input-label">عنوان الـ Embed</label>
+                        <input type="text" id="embedTitle" class="pb-input" placeholder="اكتب عنوان الإمبد هنا...">
+                    </div>
+
+                    <div style="margin-bottom:15px;">
+                        <label class="input-label">وصف الـ Embed</label>
+                        <textarea id="embedDesc" class="pb-input" style="height:100px; resize:vertical;" placeholder="اكتب وصف الإمبد هنا..."></textarea>
+                    </div>
+
+                    <div class="pb-grid" style="grid-template-columns: 1fr 1fr; margin-bottom:20px;">
+                        <div>
+                            <label class="input-label">لون الـ Embed (Color Hex)</label>
+                            <input type="color" id="embedColor" class="pb-input" value="#0088ff" style="height:45px; padding:2px; cursor:pointer;">
+                        </div>
+                        <div>
+                            <label class="input-label">Reaction تلقائي على الرسالة (إيموجي)</label>
+                            <input type="text" id="embedReaction" class="pb-input" placeholder="مثال: 👍 أو 🔥">
+                        </div>
+                    </div>
+
+                    <button type="button" onclick="sendEmbedNow()" class="btn-primary" style="width:100%; justify-content:center; padding:12px;">🚀 إرسال الـ Embed الآن إلى ديسكورد</button>
+                </div>
+            </div>
+
+            <!-- 🖼️ 4. الترحيب الاحترافي -->
+            <div id="welcomeTab" class="tab-section">
+                <h2 style="margin-bottom: 20px; color:#fff;">🖼️ الترحيب الاحترافي المخصص</h2>
+                <div class="pb-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
+                        <div>
+                            <h4 style="color:#fff;">تفعيل نظام الترحيب بالصور</h4>
+                            <p style="color:var(--text-secondary); font-size:12px;">إرسال بطاقة ترحيب مصممة عند دخول أفراد جدد</p>
+                        </div>
+                        <label class="switch"><input type="checkbox" id="welEnabled" <%= settings.welcomeEnabled ? 'checked' : '' %>><span class="slider"></span></label>
+                    </div>
+
+                    <div class="pb-grid" style="margin-bottom:20px;">
+                        <div>
+                            <label class="input-label">روم الترحيب</label>
+                            <select id="welChannel" class="pb-input">
+                                <% channels.forEach(ch => { %>
+                                    <option value="<%= ch.id %>" <%= settings.welcomeChannel === ch.id ? 'selected' : '' %>># <%= ch.name %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div style="grid-column: span 2;">
+                            <label class="input-label">رابط صورة الخلفية (URL)</label>
+                            <input type="text" id="welBg" class="pb-input" value="<%= settings.welcomeBg || 'https://i.imgur.com/vHq104Y.png' %>" onchange="updateWelcomeCanvasBg()">
+                        </div>
+                    </div>
+
+                    <h4 style="color:var(--accent-color); margin-bottom:8px; border-top:1px solid var(--border-color); padding-top:15px;">🎯 فريم معاينة الترحيب (اسحب الأشكال بيدك أو اكتب الإحداثيات)</h4>
+                    <p style="color:var(--text-secondary); font-size:12px; margin-bottom:15px;">يمكنك سحب صورة الشخص والاسم بيدك داخل الفريم وسوف تتحدث الأرقام تلقائياً!</p>
+
+                    <div id="welcomeCanvas" class="welcome-canvas-frame" style="background-image: url('<%= settings.welcomeBg || "https://i.imgur.com/vHq104Y.png" %>');">
+                        <img id="dragAvatar" src="<%= user.avatar ? 'https://cdn.discordapp.com/avatars/' + user.id + '/' + user.avatar + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png' %>" class="draggable-avatar" style="left: <%= settings.welAvatarX || 250 %>px; top: <%= settings.welAvatarY || 100 %>px; width: <%= settings.welAvatarSize || 100 %>px; height: <%= settings.welAvatarSize || 100 %>px;">
+                        <div id="dragUser" class="draggable-username" style="left: <%= settings.welUserX || 260 %>px; top: <%= settings.welUserY || 220 %>px; color: <%= settings.welUserColor || '#ffffff' %>;">
+                            <%= user.username %>
+                        </div>
+                    </div>
+
+                    <div class="pb-grid" style="margin-bottom:15px;">
+                        <div>
+                            <label class="input-label">موقع صورة الشخص (Avatar X)</label>
+                            <input type="number" id="welAvatarX" class="pb-input" value="<%= settings.welAvatarX || 250 %>" oninput="syncFromInputs()">
+                        </div>
+                        <div>
+                            <label class="input-label">موقع صورة الشخص (Avatar Y)</label>
+                            <input type="number" id="welAvatarY" class="pb-input" value="<%= settings.welAvatarY || 100 %>" oninput="syncFromInputs()">
+                        </div>
+                        <div>
+                            <label class="input-label">حجم صورة الشخص (Size)</label>
+                            <input type="number" id="welAvatarSize" class="pb-input" value="<%= settings.welAvatarSize || 100 %>" oninput="syncFromInputs()">
+                        </div>
+                    </div>
+
+                    <div class="pb-grid">
+                        <div>
+                            <label class="input-label">موقع اسم الشخص (User X)</label>
+                            <input type="number" id="welUserX" class="pb-input" value="<%= settings.welUserX || 260 %>" oninput="syncFromInputs()">
+                        </div>
+                        <div>
+                            <label class="input-label">موقع اسم الشخص (User Y)</label>
+                            <input type="number" id="welUserY" class="pb-input" value="<%= settings.welUserY || 220 %>" oninput="syncFromInputs()">
+                        </div>
+                        <div>
+                            <label class="input-label">لون اسم الشخص (Text Color)</label>
+                            <input type="color" id="welUserColor" class="pb-input" value="<%= settings.welUserColor || '#ffffff' %>" style="height:40px; padding:2px; cursor:pointer;" onchange="syncFromInputs()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 💬 5. الردود التلقائية -->
+            <div id="repliesTab" class="tab-section">
+                <h2 style="margin-bottom: 20px; color:#fff;">💬 الردود التلقائية</h2>
+                <div class="pb-card">
+                    <h4 style="margin-bottom:15px; color:#fff;">إضافة رد تلقائي جديد</h4>
+                    <div class="pb-grid" style="margin-bottom:15px;">
+                        <div>
+                            <label class="input-label">عندما يكتب العضو (الكلمة المفتاحية)</label>
+                            <input type="text" id="replyKeyword" class="pb-input" placeholder="مثال: السلام عليكم">
+                        </div>
+                        <div style="grid-column: span 2;">
+                            <label class="input-label">يرد البوت بـ (الرد التلقائي)</label>
+                            <input type="text" id="replyResponse" class="pb-input" placeholder="مثال: وعليكم السلام ورحمة الله وبركاته ❤️">
+                        </div>
+                    </div>
+                    <button type="button" onclick="addAutoReply()" class="btn-primary" style="margin-bottom:25px;">➕ إضافة الرد التلقائي</button>
+
+                    <h4 style="margin-bottom:15px; color:#fff; border-top:1px solid var(--border-color); padding-top:15px;">📋 قائمة الردود التلقائية المضافة</h4>
+                    <div id="repliesListContainer">
+                        <% if (repliesConfig && repliesConfig.replies && Object.keys(repliesConfig.replies).length > 0) { %>
+                            <% Object.entries(repliesConfig.replies).forEach(([kw, resp]) => { %>
+                                <div class="reply-item-row" style="display:flex; justify-content:space-between; align-items:center; background:#080b11; padding:12px 16px; border-radius:8px; margin-bottom:8px; border:1px solid var(--border-color);">
+                                    <div>
+                                        <strong style="color:var(--accent-color);"><%= kw %></strong> ➔ <span style="color:#fff;"><%= resp %></span>
+                                    </div>
+                                    <button type="button" onclick="this.parentElement.remove()" style="background:#ef4444; color:#fff; border:none; padding:4px 10px; border-radius:6px; cursor:pointer;">حذف 🗑️</button>
+                                </div>
+                            <% }); %>
+                        <% } else { %>
+                            <p style="color:var(--text-secondary); font-size:13px;" id="noRepliesText">لا يوجد ردود تلقائية مضافة حالياً.</p>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 🛡️ 6. الحماية والعقوبات -->
+            <div id="protectionTab" class="tab-section">
+                <h2 style="margin-bottom: 20px; color:#fff;">🛡️ الحماية والعقوبات التلقائية</h2>
+                
+                <!-- 🌟 ✨ الرتب الموثوقة - أصبحت بنظام الوسوم المحدث -->
+                <div class="pb-card" style="border-right:4px solid var(--accent-color);">
+                    <h4 style="color:#fff; margin-bottom:5px;">⭐ الرتب الموثوقة (Trusted Roles)</h4>
+                    <p style="color:var(--text-secondary); font-size:12px; margin-bottom:12px;">هذه الرتب لا تشملها أي عقوبة ولا يطبق عليها نظام الحماية التلقائي نهائياً.</p>
+
+                    <label class="input-label">الرتب المحددة</label>
+                    <div class="tags-container roles-container" id="trustedRolesContainer" style="margin-bottom:10px;">
+                        <% const trustedList = (protectionConfig && protectionConfig.trustedRoles) || []; %>
+                        <% trustedList.forEach(rId => { %>
+                            <% 
+                                const found = roles.find(r => r.id === rId);
+                                if(found) {
+                            %>
+                                <span class="role-badge" data-role-id="<%= found.id %>"><%= found.name %><span onclick="this.parentElement.remove()">×</span></span>
+                            <% } %>
+                        <% }); %>
+                    </div>
+
+                    <select class="pb-input" onchange="addRoleTag(this)">
+                        <option value="" disabled selected>➕ اختر رتبة موثوقة لإضافتها...</option>
+                        <% roles.forEach(r => { %>
+                            <option value="<%= r.id %>"><%= r.name %></option>
+                        <% }); %>
+                    </select>
+                </div>
+
+                <div class="pb-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                        <div>
+                            <h4 style="color:#fff;">🔗 منع إرسال الروابط (Anti-Links)</h4>
+                            <p style="color:var(--text-secondary); font-size:12px;">حذف أي رسالة تحتوي على روابط موقع خارجية فوراً</p>
+                        </div>
+                        <label class="switch"><input type="checkbox" id="protLinks" <%= (protectionConfig && protectionConfig.links) ? 'checked' : '' %>><span class="slider"></span></label>
+                    </div>
+                    <div class="pb-grid">
+                        <div>
+                            <label class="input-label">عقوبة المخالف</label>
+                            <select id="linkAction" class="pb-input">
+                                <option value="warn" <%= (protectionConfig && protectionConfig.linkAction==='warn') ? 'selected' : '' %>>⚠️ تحذير فقط وحذف</option>
+                                <option value="mute" <%= (protectionConfig && protectionConfig.linkAction==='mute') ? 'selected' : '' %>>🔇 ميوت مؤقت (Timeout)</option>
+                                <option value="kick" <%= (protectionConfig && protectionConfig.linkAction==='kick') ? 'selected' : '' %>>👞 طرد (Kick)</option>
+                                <option value="ban" <%= (protectionConfig && protectionConfig.linkAction==='ban') ? 'selected' : '' %>>🔨 حظر نهائي (Ban)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="input-label">مدة التايم أوت (بالدقائق)</label>
+                            <input type="number" id="linkMuteTime" class="pb-input" value="<%= (protectionConfig && protectionConfig.linkMuteTime) || 5 %>">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pb-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                        <div>
+                            <h4 style="color:#fff;">📢 منع المنشن الجماعي (Anti-MassMention)</h4>
+                            <p style="color:var(--text-secondary); font-size:12px;">منع الأعضاء غير المصرح لهم من استخدام @everyone أو @here</p>
+                        </div>
+                        <label class="switch"><input type="checkbox" id="protMention" <%= (protectionConfig && protectionConfig.massMention) ? 'checked' : '' %>><span class="slider"></span></label>
+                    </div>
+                    <div class="pb-grid">
+                        <div>
+                            <label class="input-label">عقوبة المخالف</label>
+                            <select id="mentionAction" class="pb-input">
+                                <option value="warn" <%= (protectionConfig && protectionConfig.mentionAction==='warn') ? 'selected' : '' %>>⚠️ تحذير فقط وحذف</option>
+                                <option value="mute" <%= (protectionConfig && protectionConfig.mentionAction==='mute') ? 'selected' : '' %>>🔇 ميوت مؤقت (Timeout)</option>
+                                <option value="kick" <%= (protectionConfig && protectionConfig.mentionAction==='kick') ? 'selected' : '' %>>👞 طرد (Kick)</option>
+                                <option value="ban" <%= (protectionConfig && protectionConfig.mentionAction==='ban') ? 'selected' : '' %>>🔨 حظر نهائي (Ban)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="input-label">مدة التايم أوت (بالدقائق)</label>
+                            <input type="number" id="mentionMuteTime" class="pb-input" value="<%= (protectionConfig && protectionConfig.mentionMuteTime) || 5 %>">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pb-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                        <div>
+                            <h4 style="color:#fff;">⚡ منع السبيام وتكرار الرسائل (Anti-Spam)</h4>
+                            <p style="color:var(--text-secondary); font-size:12px;">كشف وحظر الأعضاء الذين يرسلون رسائل متكررة بسرعة</p>
+                        </div>
+                        <label class="switch"><input type="checkbox" id="protSpam" <%= (protectionConfig && protectionConfig.antiSpam) ? 'checked' : '' %>><span class="slider"></span></label>
+                    </div>
+                    <div class="pb-grid">
+                        <div>
+                            <label class="input-label">عقوبة المخالف</label>
+                            <select id="spamAction" class="pb-input">
+                                <option value="warn" <%= (protectionConfig && protectionConfig.spamAction==='warn') ? 'selected' : '' %>>⚠️ تحذير فقط</option>
+                                <option value="mute" <%= (protectionConfig && protectionConfig.spamAction==='mute') ? 'selected' : '' %>>🔇 ميوت مؤقت (Timeout)</option>
+                                <option value="kick" <%= (protectionConfig && protectionConfig.spamAction==='kick') ? 'selected' : '' %>>👞 طرد (Kick)</option>
+                                <option value="ban" <%= (protectionConfig && protectionConfig.spamAction==='ban') ? 'selected' : '' %>>🔨 حظر نهائي (Ban)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="input-label">مدة التايم أوت (بالدقائق)</label>
+                            <input type="number" id="spamMuteTime" class="pb-input" value="<%= (protectionConfig && protectionConfig.spamMuteTime) || 10 %>">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pb-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid var(--border-color); padding-bottom:12px;">
+                        <div>
+                            <h4 style="color:#fff;">🤖 منع إضافة البوتات (Anti-Bots)</h4>
+                            <p style="color:var(--text-secondary); font-size:12px;">طرد أي بوت جديد يتم إضافته بدون إذن مسبق</p>
+                        </div>
+                        <label class="switch"><input type="checkbox" id="protBots" <%= (protectionConfig && protectionConfig.antiBots) ? 'checked' : '' %>><span class="slider"></span></label>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <h4 style="color:#fff;">💥 حماية النيوك والتخريب (Anti-Nuke)</h4>
+                            <p style="color:var(--text-secondary); font-size:12px;">منع وحظر من يحاول مسح الرومات أو الرتب بكثرة فوراً</p>
+                        </div>
+                        <label class="switch"><input type="checkbox" id="protNuke" <%= (protectionConfig && protectionConfig.antiNuke) ? 'checked' : '' %>><span class="slider"></span></label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 📋 7. نظام اللوجات -->
+            <div id="logsTab" class="tab-section">
+                <h2 style="margin-bottom: 20px; color:#fff;">📋 نظام اللوجات والسجلات</h2>
+                <div class="pb-card">
+                    <div class="pb-grid" style="margin-bottom:15px;">
+                        <div>
+                            <label class="input-label">لوج الرسائل (تعديل / حذف)</label>
+                            <select id="logMsgChannel" class="pb-input">
+                                <option value="none">❌ معطل</option>
+                                <% channels.forEach(ch => { %>
+                                    <option value="<%= ch.id %>" <%= (logsConfig && logsConfig.msgChannel===ch.id) ? 'selected' : '' %>># <%= ch.name %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="input-label">لوج الأعضاء (دخول / خروج)</label>
+                            <select id="logMemberChannel" class="pb-input">
+                                <option value="none">❌ معطل</option>
+                                <% channels.forEach(ch => { %>
+                                    <option value="<%= ch.id %>" <%= (logsConfig && logsConfig.memberChannel===ch.id) ? 'selected' : '' %>># <%= ch.name %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="pb-grid">
+                        <div>
+                            <label class="input-label">لوج الرومات الصوتية (Voice Logs)</label>
+                            <select id="logVoiceChannel" class="pb-input">
+                                <option value="none">❌ معطل</option>
+                                <% channels.forEach(ch => { %>
+                                    <option value="<%= ch.id %>" <%= (logsConfig && logsConfig.voiceChannel===ch.id) ? 'selected' : '' %>># <%= ch.name %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="input-label">لوج العقوبات والإدارة (Mod Logs)</label>
+                            <select id="logModChannel" class="pb-input">
+                                <option value="none">❌ معطل</option>
+                                <% channels.forEach(ch => { %>
+                                    <option value="<%= ch.id %>" <%= (logsConfig && logsConfig.modChannel===ch.id) ? 'selected' : '' %>># <%= ch.name %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 💾 زر الحفظ العام -->
+            <div style="margin-top:30px; position:sticky; bottom:0; background:var(--bg-main); padding-top:15px; border-top:1px solid var(--border-color); z-index:10;">
+                <button type="button" onclick="saveAllConfigs()" class="btn-primary" style="width:100%; justify-content:center; padding:14px; font-size:16px;">💾 حفظ كافة الإعدادات والربط التام بالبوت</button>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.tab-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        /* 🌟 إضافة الرتب كـ وسوم مخصصة بمربع شفاف */
+        function addRoleTag(selectEl) {
+            const roleId = selectEl.value;
+            if (!roleId) return;
+
+            const roleName = selectEl.options[selectEl.selectedIndex].text;
+            const container = selectEl.parentElement.querySelector('.roles-container');
+
+            if (container.querySelector(`[data-role-id="${roleId}"]`)) {
+                selectEl.selectedIndex = 0;
+                return;
+            }
+
+            const badge = document.createElement('span');
+            badge.className = 'role-badge';
+            badge.setAttribute('data-role-id', roleId);
+            badge.innerHTML = `${roleName}<span onclick="this.parentElement.remove()">×</span>`;
+
+            container.appendChild(badge);
+            selectEl.selectedIndex = 0;
+        }
+
+        function handleTagInput(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                const input = e.target;
+                const val = input.value.trim().replace(/,/g, '');
+                if (val) {
+                    const container = input.parentElement;
+                    const badge = document.createElement('span');
+                    badge.className = 'tag-badge';
+                    badge.innerHTML = `${val}<span onclick="this.parentElement.remove()">×</span>`;
+                    container.insertBefore(badge, input);
+                    input.value = '';
+                }
+            }
+        }
+
+        function addAutoReply() {
+            const kw = document.getElementById('replyKeyword').value.trim();
+            const resp = document.getElementById('replyResponse').value.trim();
+
+            if (!kw || !resp) return alert('⚠️ يرجى كتابة الكلمة والرد أولاً!');
+
+            const container = document.getElementById('repliesListContainer');
+            const noText = document.getElementById('noRepliesText');
+            if (noText) noText.remove();
+
+            const div = document.createElement('div');
+            div.className = 'reply-item-row';
+            div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:#080b11; padding:12px 16px; border-radius:8px; margin-bottom:8px; border:1px solid var(--border-color);';
+            div.innerHTML = `<div><strong style="color:var(--accent-color);">${kw}</strong> ➔ <span style="color:#fff;">${resp}</span></div>
+                             <button type="button" onclick="this.parentElement.remove()" style="background:#ef4444; color:#fff; border:none; padding:4px 10px; border-radius:6px; cursor:pointer;">حذف 🗑️</button>`;
+            container.appendChild(div);
+
+            document.getElementById('replyKeyword').value = '';
+            document.getElementById('replyResponse').value = '';
+        }
+
+        /* سحب عناصر الترحيب بالماوس */
+        function initDragSystem(elementId, inputXId, inputYId) {
+            const el = document.getElementById(elementId);
+            const parent = document.getElementById('welcomeCanvas');
+            let isDragging = false, startX, startY, initialLeft, initialTop;
+
+            el.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                initialLeft = el.offsetLeft;
+                initialTop = el.offsetTop;
+                e.preventDefault();
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                let newLeft = Math.max(0, Math.min(parent.clientWidth - el.offsetWidth, initialLeft + dx));
+                let newTop = Math.max(0, Math.min(parent.clientHeight - el.offsetHeight, initialTop + dy));
+
+                el.style.left = newLeft + 'px';
+                el.style.top = newTop + 'px';
+
+                document.getElementById(inputXId).value = Math.round(newLeft);
+                document.getElementById(inputYId).value = Math.round(newTop);
+            });
+
+            window.addEventListener('mouseup', () => { isDragging = false; });
+        }
+
+        initDragSystem('dragAvatar', 'welAvatarX', 'welAvatarY');
+        initDragSystem('dragUser', 'welUserX', 'welUserY');
+
+        function syncFromInputs() {
+            const avX = document.getElementById('welAvatarX').value;
+            const avY = document.getElementById('welAvatarY').value;
+            const avSize = document.getElementById('welAvatarSize').value;
+
+            const uX = document.getElementById('welUserX').value;
+            const uY = document.getElementById('welUserY').value;
+            const uColor = document.getElementById('welUserColor').value;
+
+            const av = document.getElementById('dragAvatar');
+            av.style.left = avX + 'px';
+            av.style.top = avY + 'px';
+            av.style.width = avSize + 'px';
+            av.style.height = avSize + 'px';
+
+            const u = document.getElementById('dragUser');
+            u.style.left = uX + 'px';
+            u.style.top = uY + 'px';
+            u.style.color = uColor;
+        }
+
+        function updateWelcomeCanvasBg() {
+            const bgUrl = document.getElementById('welBg').value;
+            document.getElementById('welcomeCanvas').style.backgroundImage = `url('${bgUrl}')`;
+        }
+
+        function showToastNotification() {
+            const toast = document.getElementById('toastNotification');
+            toast.classList.add('show');
+            setTimeout(() => { toast.classList.remove('show'); }, 3500);
+        }
+
+        async function sendEmbedNow() {
+            const guildId = document.getElementById('guildIdHolder').value;
+            const data = {
+                channelId: document.getElementById('embedChannel').value,
+                title: document.getElementById('embedTitle').value,
+                description: document.getElementById('embedDesc').value,
+                color: document.getElementById('embedColor').value,
+                reaction: document.getElementById('embedReaction').value
+            };
+
+            try {
+                const res = await fetch('/api/send-embed/' + guildId, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                if (result.success) {
+                    showToastNotification();
+                } else {
+                    alert('❌ خطأ: ' + result.message);
+                }
+            } catch (e) {
+                alert('❌ تعذر الاتصال بالخادم!');
+            }
+        }
+
+        async function saveAllConfigs() {
+            const guildId = document.getElementById('guildIdHolder').value;
+
+            const commandsConfig = {};
+            document.querySelectorAll('.pb-card[data-cmd]').forEach(card => {
+                const cmdName = card.getAttribute('data-cmd');
+                const enabled = card.querySelector('.cmd-status').checked;
+                const aliases = Array.from(card.querySelectorAll('.tag-badge')).map(b => b.firstChild.textContent.trim());
+                const roles = Array.from(card.querySelectorAll('.role-badge')).map(b => b.getAttribute('data-role-id'));
+                const channel = card.querySelector('.cmd-channel').value;
+
+                commandsConfig[cmdName] = { enabled, aliases, roles, channel };
+            });
+
+            const settings = {
+                welcomeEnabled: document.getElementById('welEnabled').checked,
+                welcomeChannel: document.getElementById('welChannel').value,
+                welcomeBg: document.getElementById('welBg').value,
+                welAvatarX: parseInt(document.getElementById('welAvatarX').value),
+                welAvatarY: parseInt(document.getElementById('welAvatarY').value),
+                welAvatarSize: parseInt(document.getElementById('welAvatarSize').value),
+                welUserX: parseInt(document.getElementById('welUserX').value),
+                welUserY: parseInt(document.getElementById('welUserY').value),
+                welUserColor: document.getElementById('welUserColor').value
+            };
+
+            const replies = {};
+            document.querySelectorAll('.reply-item-row').forEach(row => {
+                const kw = row.querySelector('strong').textContent.trim();
+                const resp = row.querySelector('span').textContent.trim();
+                replies[kw] = resp;
+            });
+            const repliesConfig = { replies };
+
+            // 🌟 استخراج الرتب الموثوقة المحددة عبر نظام الكروت المحدث
+            const trustedRoles = Array.from(document.querySelectorAll('#trustedRolesContainer .role-badge')).map(b => b.getAttribute('data-role-id'));
+
+            const protectionConfig = {
+                trustedRoles,
+                links: document.getElementById('protLinks').checked,
+                linkAction: document.getElementById('linkAction').value,
+                linkMuteTime: document.getElementById('linkMuteTime').value,
+                massMention: document.getElementById('protMention').checked,
+                mentionAction: document.getElementById('mentionAction').value,
+                mentionMuteTime: document.getElementById('mentionMuteTime').value,
+                antiSpam: document.getElementById('protSpam').checked,
+                spamAction: document.getElementById('spamAction').value,
+                spamMuteTime: document.getElementById('spamMuteTime').value,
+                antiBots: document.getElementById('protBots').checked,
+                antiNuke: document.getElementById('protNuke').checked
+            };
+
+            const logsConfig = {
+                msgChannel: document.getElementById('logMsgChannel').value,
+                memberChannel: document.getElementById('logMemberChannel').value,
+                voiceChannel: document.getElementById('logVoiceChannel').value,
+                modChannel: document.getElementById('logModChannel').value
+            };
+
+            try {
+                const res = await fetch('/api/save-all/' + guildId, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ settings, commandsConfig, protectionConfig, logsConfig, repliesConfig })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToastNotification();
+                }
+            } catch (e) {
+                alert('❌ تعذر الاتصال بالخادم!');
+            }
+        }
+    </script>
+</body>
+</html>

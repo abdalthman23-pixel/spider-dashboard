@@ -9,8 +9,8 @@ const PORT = process.env.PORT || 10000;
 
 // المفاتيح
 const CLIENT_ID = process.env.CLIENT_ID || '1534954572743704717';
-const CLIENT_SECRET = process.env.CLIENT_SECRET || 'G3NTaJvG35Dwa6_IqMtSs0IkS9Nt-D1E';
-const BOT_TOKEN = process.env.BOT_TOKEN || 'MTUzNDk1NDU3Mjc0MzcwNDcxNw.GzvmkW.E1aj7gnwRQrft-bI7-H3JDmb-GVO2jdRBGiFBY'; 
+const CLIENT_SECRET = process.env.CLIENT_SECRET || '';
+const BOT_TOKEN = process.env.BOT_TOKEN || ''; 
 const CALLBACK_URL = 'https://dashbord-46or.onrender.com/auth/discord/callback';
 
 // ذاكرة مؤقتة للإعدادات لتفادي مسح البيانات عند إعادة التشغيل

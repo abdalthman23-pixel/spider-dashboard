@@ -8,6 +8,27 @@ const fs = require('fs');
 
 const config = require('./config.json');
 
+// ==========================================================
+// قراءة موحّدة للتوكن: يقبل أي اسم شائع لمتغير البيئة
+// (token / BOT_TOKEN / TOKEN)، وإن لم يوجد أي منها يرجع لـ config.json
+// ==========================================================
+const TOKEN = process.env.token || process.env.BOT_TOKEN || process.env.TOKEN || config.token;
+
+// نفس الفكرة لرابط الداشبورد ورابط الـ OAuth callback - كلها موحّدة بمكان واحد
+const DASHBOARD_URL = process.env.dashboardUrl || process.env.DASHBOARD_URL || config.dashboardUrl;
+const CALLBACK_URL = process.env.callbackURL || process.env.CALLBACK_URL || config.callbackURL;
+
+// تحقق مبكر وواضح بدل ما يفشل الكود بصمت لاحقاً
+if (!TOKEN || TOKEN === '1' || TOKEN.includes('ضع_')) {
+    console.error('❌ خطأ فادح: التوكن غير موجود أو لا يزال قيمة افتراضية. تحقق من config.json أو متغيرات البيئة.');
+}
+if (!DASHBOARD_URL || DASHBOARD_URL.includes('اكتب_')) {
+    console.warn('⚠️ تحذير: dashboardUrl غير مضبوط بشكل صحيح في config.json.');
+}
+if (!CALLBACK_URL || CALLBACK_URL.includes('اكتب_')) {
+    console.warn('⚠️ تحذير: callbackURL غير مضبوط بشكل صحيح في config.json.');
+}
+
 // إعداد البوت
 const client = new Client({
     intents: [
@@ -19,6 +40,8 @@ const client = new Client({
 });
 
 client.commands = new Collection();
+// نمرر رابط الداشبورد لأي أمر يحتاجه (مثل أمر /dashboard) عبر الـ client مباشرة
+client.dashboardUrl = DASHBOARD_URL;
 
 // تحميل الأوامر
 const commandsPath = path.join(__dirname, 'commands');
@@ -54,29 +77,44 @@ if (fs.existsSync(eventsPath)) {
     }
 }
 
-// تسجيل الأوامر الـ Slash Commands فوراً عند الجاهزية
+// تسجيل الأوامر الـ Slash Commands عند الجاهزية
+// ملاحظة: التسجيل عالمي فقط (بدون تكرار لكل سيرفر) لتفادي ظهور أوامر مكررة.
+// إن أردت ظهور فوري أثناء التطوير، ضع GUILD_ID في متغيرات البيئة.
 client.once('ready', async () => {
     console.log(`==========================================`);
     console.log(`✅ تم تشغيل البوت بنجاح باسم: ${client.user.tag}`);
     try {
         const commandsData = Array.from(client.commands.values()).map(c => c.data.toJSON());
-        await client.application.commands.set(commandsData);
-        client.guilds.cache.forEach(async (guild) => {
-            await guild.commands.set(commandsData).catch(() => {});
-        });
-        console.log('⚡ تم تحديث وتسجيل كافة أوامر السلاش (/ commands) بنجاح!');
+
+        if (process.env.GUILD_ID) {
+            const guild = client.guilds.cache.get(process.env.GUILD_ID);
+            if (guild) {
+                await guild.commands.set(commandsData);
+                console.log(`⚡ تم تسجيل الأوامر فوراً على سيرفر التطوير (${process.env.GUILD_ID})`);
+            } else {
+                console.warn('⚠️ لم يتم العثور على GUILD_ID المحدد ضمن سيرفرات البوت.');
+            }
+        } else {
+            await client.application.commands.set(commandsData);
+            console.log('⚡ تم تحديث وتسجيل كافة أوامر السلاش (/ commands) عالمياً بنجاح! (قد تستغرق دقائق للظهور)');
+        }
     } catch (e) {
         console.error('❌ خطأ في تسجيل الأوامر:', e);
     }
     console.log(`==========================================`);
 });
 
+client.on('error', (e) => console.error('❌ خطأ في اتصال البوت (Client Error):', e));
+client.on('shardError', (e) => console.error('❌ خطأ في الـ Shard:', e));
+
 // إعداد خادم الويب (Express Dashboard)
 const app = express();
 
+// ضروري خلف أي بروكسي عكسي (wispbyte / render وغيرها) حتى تعمل الجلسات وOAuth بشكل صحيح
+app.set('trust proxy', 1);
+
 app.set('view engine', 'ejs');
 
-// ربط مجلدات الـ View والـ Public بشكل ديناميكي لضمان تحميل الـ CSS والتصاميم
 if (fs.existsSync(path.join(__dirname, 'views'))) {
     app.set('views', path.join(__dirname, 'views'));
 } else {
@@ -94,7 +132,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(session({
-    secret: 'spider_secret_session_key_123',
+    secret: process.env.sessionSecret || config.sessionSecret || 'spider_secret_session_key_123',
     resave: false,
     saveUninitialized: false
 }));
@@ -105,10 +143,12 @@ app.use(passport.session());
 passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((obj, done) => done(null, obj));
 
+// ⚠️ هذا الرابط (CALLBACK_URL) يجب أن يطابق حرفياً (100%) رابط الـ Redirect
+// المسجل في Discord Developer Portal > OAuth2 > Redirects
 passport.use(new DiscordStrategy({
     clientID: config.clientId,
     clientSecret: config.clientSecret,
-    callbackURL: 'http://78.154.103.26:14885/auth/callback',
+    callbackURL: CALLBACK_URL,
     scope: ['identify', 'guilds']
 }, (accessToken, refreshToken, profile, done) => {
     process.nextTick(() => done(null, profile));
@@ -137,7 +177,7 @@ app.get('/', (req, res) => {
     res.render('index', { user: req.user });
 });
 
-// صفحة اللوحة الرئيسية (Dashboard) - تم إصلاح المتغيرات الناقصة هنا
+// صفحة اللوحة الرئيسية (Dashboard)
 app.get('/dashboard', checkAuth, (req, res) => {
     const userGuilds = req.user.guilds || [];
     const botGuilds = client.guilds.cache;
@@ -149,7 +189,6 @@ app.get('/dashboard', checkAuth, (req, res) => {
         };
     });
 
-    // قراءة الرصيد من الاقتصاد أو وضع قيمة 0 افتراضية لمنع الخطأ
     let userBalance = 0;
     try {
         const ecoPath = path.join(__dirname, 'database/economy.json');
@@ -161,8 +200,8 @@ app.get('/dashboard', checkAuth, (req, res) => {
         userBalance = 0;
     }
 
-    res.render('dashboard', { 
-        user: req.user, 
+    res.render('dashboard', {
+        user: req.user,
         guilds: guilds,
         userBalance: userBalance,
         userRank: '#1'
@@ -248,12 +287,16 @@ app.post('/api/send-embed/:guildId', checkAuth, async (req, res) => {
     }
 });
 
-// تشغيل السيرفر على بورت WispByte
+// تشغيل السيرفر على بورت wispbyte
 const PORT = process.env.SERVER_PORT || process.env.PORT || 14885;
-const DASHBOARD_URL = `http://78.154.103.26:${PORT}`;
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🌐 لوحة التحكم تعمل الآن بنجاح على الرابط: ${DASHBOARD_URL}`);
+    console.log(`🌐 لوحة التحكم تعمل الآن بنجاح على البورت: ${PORT}`);
+    console.log(`🔗 رابط الداشبورد المستخدم: ${DASHBOARD_URL}`);
+    console.log(`🔗 رابط الـ OAuth callback المستخدم: ${CALLBACK_URL}`);
 });
 
-client.login(config.token || process.env.BOT_TOKEN);
+// تسجيل دخول البوت مع معالجة واضحة للأخطاء
+client.login(TOKEN).catch((e) => {
+    console.error('❌ فشل تسجيل دخول البوت! تأكد من صحة التوكن ومن تفعيل الـ Privileged Intents (Message Content / Server Members) في Discord Developer Portal:', e.message);
+});

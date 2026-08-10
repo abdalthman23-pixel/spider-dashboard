@@ -53,7 +53,7 @@
         </div>
         <div class="stat-card">
             <h3>BOT SERVERS</h3>
-            <p>Active Guilds <%= activeGuildsCount %></p>
+            <p>Active Guilds <%= typeof activeGuildsCount !== 'undefined' ? activeGuildsCount : guilds.filter(g => g.botInstalled).length %></p>
         </div>
     </div>
 
@@ -70,11 +70,11 @@
 
                 <div class="guild-name"><%= guild.name %></div>
 
-                <% if (guild.hasBot) { %>
+                <% if (guild.botInstalled) { %>
                     <a href="/dashboard/<%= guild.id %>" class="btn btn-manage">تعديل الإعدادات</a>
                     <span class="status-badge online">✅ البوت موجود</span>
                 <% } else { %>
-                    <a href="https://discord.com/oauth2/authorize?client_id=1534954572743704717&scope=bot&permissions=8&guild_id=<%= guild.id %>" target="_blank" class="btn btn-add">إضافة البوت</a>
+                    <a href="https://discord.com/oauth2/authorize?client_id=<%= clientId %>&scope=bot&permissions=8&guild_id=<%= guild.id %>" target="_blank" class="btn btn-add">إضافة البوت</a>
                     <span class="status-badge offline">❌ البوت غير موجود</span>
                 <% } %>
             </div>

@@ -3,16 +3,19 @@ const session = require('express-session');
 const passport = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
 const CLIENT_ID = process.env.CLIENT_ID || '1534954572743704717';
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
-const BOT_TOKEN = process.env.BOT_TOKEN;
 const CALLBACK_URL = 'https://dashbord-46or.onrender.com/auth/discord/callback';
+const BOT_API_SECRET = 'SpiderSecretAPIKey12345';
 
-const memoryDb = {};
+// إنشـاء مجلد الداتا للتأكد من وجوده
+const dbDir = path.join(__dirname, 'database');
+if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
 
 passport.use(new DiscordStrategy({
     clientID: CLIENT_ID,
@@ -41,17 +44,10 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
+// 🔑 مسارات الدخول
 app.get('/auth/discord', passport.authenticate('discord'));
-
-app.get('/auth/discord/callback', passport.authenticate('discord', {
-    failureRedirect: '/'
-}), (req, res) => {
-    res.redirect('/dashboard');
-});
-
-app.get('/logout', (req, res) => {
-    req.logout(() => res.redirect('/'));
-});
+app.get('/auth/discord/callback', passport.authenticate('discord', { failureRedirect: '/' }), (req, res) => res.redirect('/dashboard'));
+app.get('/logout', (req, res) => { req.logout(() => res.redirect('/')); });
 
 app.get('/', (req, res) => {
     if (req.isAuthenticated()) return res.redirect('/dashboard');
@@ -70,59 +66,93 @@ app.get('/', (req, res) => {
     `);
 });
 
-app.get('/dashboard', async (req, res) => {
+// 📊 الداشبورد
+app.get('/dashboard', (req, res) => {
     if (!req.isAuthenticated()) return res.redirect('/auth/discord');
     
     const userGuilds = (req.user.guilds || []).filter(g => (g.permissions & 0x8) === 0x8 || (g.permissions & 0x20) === 0x20);
 
+    const botGuildsPath = path.join(dbDir, 'bot_guilds.json');
     let botGuildIds = [];
-    if (BOT_TOKEN) {
+
+    if (fs.existsSync(botGuildsPath)) {
         try {
-            const response = await fetch('https://discord.com/api/v10/users/@me/guilds', {
-                headers: { Authorization: `Bot ${BOT_TOKEN.trim()}` }
-            });
-            if (response.ok) {
-                const botGuilds = await response.json();
-                botGuildIds = botGuilds.map(g => g.id);
-            }
-        } catch (err) {
-            console.error("خطأ جلب السيرفرات:", err);
+            botGuildIds = JSON.parse(fs.readFileSync(botGuildsPath, 'utf8'));
+        } catch (e) {
+            console.error("خطأ قراءة bot_guilds.json:", e);
         }
     }
 
     const processedGuilds = userGuilds.map(guild => ({
         ...guild,
-        hasBot: botGuildIds.length > 0 ? botGuildIds.includes(guild.id) : true
+        hasBot: botGuildIds.includes(guild.id)
     }));
 
     res.render('dashboard', { 
         user: req.user, 
         guilds: processedGuilds, 
-        activeGuildsCount: botGuildIds.length || userGuilds.length,
+        activeGuildsCount: botGuildIds.length,
         userBalance: 0, 
         userRank: 'غير مصنف' 
     });
 });
 
+// 🤖 API لمزامنة سيرفرات البوت
+app.post('/api/bot/sync-guilds', (req, res) => {
+    if (req.headers['x-api-secret'] !== BOT_API_SECRET) return res.status(403).json({ error: 'غير مصرح' });
+
+    const { guildIds } = req.body;
+    if (Array.isArray(guildIds)) {
+        fs.writeFileSync(path.join(dbDir, 'bot_guilds.json'), JSON.stringify(guildIds, null, 4));
+        return res.json({ success: true, count: guildIds.length });
+    }
+    res.status(400).json({ error: 'بيانات غير صحيحة' });
+});
+
+// 📂 صفحة إعدادات سيرفر محدد
 app.get('/dashboard/:guildId', (req, res) => {
     if (!req.isAuthenticated()) return res.redirect('/auth/discord');
     const guildId = req.params.guildId;
-    const guildData = memoryDb[guildId] || { prefix: '!', autoResponses: [], aliases: {} };
-    res.render('guild', { user: req.user, guildId, data: guildData });
+    
+    const settingsPath = path.join(dbDir, `${guildId}_settings.json`);
+    let settings = { prefix: '!', autoResponses: [], aliases: {} };
+
+    if (fs.existsSync(settingsPath)) {
+        try {
+            settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        } catch (e) { console.error(e); }
+    }
+    
+    res.render('guild', { user: req.user, guildId, data: settings });
 });
 
+// 💾 حفظ إعدادات سيرفر محدد (الاختصارات، البريفكس، الردود...)
 app.post('/api/save-settings/:guildId', (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ success: false });
     const guildId = req.params.guildId;
-    memoryDb[guildId] = req.body;
+    
+    const settingsPath = path.join(dbDir, `${guildId}_settings.json`);
+    fs.writeFileSync(settingsPath, JSON.stringify(req.body, null, 4));
+    
+    console.log(`[داتا] تم حفظ إعدادات السيرفر ${guildId} بنجاح!`);
     res.json({ success: true, message: 'تم حفظ الإعدادات بنجاح!' });
 });
 
+// 🤖 API للبوت يقدر من خلاله يجلب إعدادات أي سيرفر فوراً
 app.get('/api/bot/get-settings/:guildId', (req, res) => {
+    if (req.headers['x-api-secret'] !== BOT_API_SECRET) return res.status(403).json({ error: 'غير مصرح' });
+    
     const guildId = req.params.guildId;
-    res.json(memoryDb[guildId] || {});
+    const settingsPath = path.join(dbDir, `${guildId}_settings.json`);
+
+    if (fs.existsSync(settingsPath)) {
+        const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        return res.json(settings);
+    }
+    
+    res.json({ prefix: '!', autoResponses: [], aliases: {} });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🌐 سيرفر الداشبورد شغال رسمياً على المنفذ ${PORT}`);
+    console.log(`🌐 سيرفر الداشبورد يعمل على المنفذ ${PORT}`);
 });

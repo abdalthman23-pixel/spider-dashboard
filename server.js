@@ -6,16 +6,10 @@ const { Client, GatewayIntentBits } = require('discord.js');
 const path = require('path');
 const fs = require('fs');
 
-// جلب الإعدادات من config.json إذا كانت موجودة
-let config = {};
-try {
-    config = require('./config.json');
-} catch (e) {
-    config = {};
-}
+const config = require('./config.json');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.SERVER_PORT || process.env.PORT || 3000;
 
 // إعداد بوت البوت (Discord.js Client)
 const client = new Client({
@@ -27,11 +21,25 @@ const client = new Client({
     ]
 });
 
-// قراءة البيانات من البيئة (Render) أو من ملف config.json
-const CLIENT_ID = process.env.CLIENT_ID || config.clientID || config.client_id || 'YOUR_CLIENT_ID';
-const CLIENT_SECRET = process.env.CLIENT_SECRET || config.clientSecret || config.client_secret || 'YOUR_CLIENT_SECRET';
-const CALLBACK_URL = process.env.CALLBACK_URL || config.callbackURL || 'http://localhost:3000/auth/discord/callback';
-const BOT_TOKEN = process.env.token || process.env.TOKEN || process.env.DISCORD_TOKEN || config.token;
+// نقرأ القيم الحقيقية من config.json (أو متغيرات البيئة إن وجدت) بدل القيم الوهمية الثابتة
+const CLIENT_ID = config.clientId;
+const CLIENT_SECRET = config.clientSecret;
+const CALLBACK_URL = process.env.callbackURL || process.env.CALLBACK_URL || config.callbackURL;
+const BOT_TOKEN = process.env.token || process.env.BOT_TOKEN || process.env.TOKEN || config.token;
+
+// تحقق مبكر وواضح بدل ما يفشل الكود بصمت لاحقاً
+if (!CLIENT_ID || CLIENT_ID.includes('YOUR_')) {
+    console.error('❌ خطأ فادح: clientId غير موجود أو لا يزال قيمة افتراضية في config.json.');
+}
+if (!CLIENT_SECRET || CLIENT_SECRET.includes('YOUR_')) {
+    console.error('❌ خطأ فادح: clientSecret غير موجود أو لا يزال قيمة افتراضية في config.json.');
+}
+if (!BOT_TOKEN || BOT_TOKEN.includes('YOUR_') || BOT_TOKEN === '1') {
+    console.error('❌ خطأ فادح: التوكن غير موجود أو لا يزال قيمة افتراضية.');
+}
+if (!CALLBACK_URL || CALLBACK_URL.includes('localhost')) {
+    console.warn('⚠️ تحذير: callbackURL لا يزال يشير إلى localhost، تأكد من ضبطه في config.json ليطابق رابط الاستضافة الحقيقي.');
+}
 
 // إعدادات الباسبورت (Passport Discord Strategy)
 passport.use(new DiscordStrategy({
@@ -51,8 +59,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 
+// ضروري خلف أي بروكسي عكسي (wispbyte / render وغيرها) حتى تعمل الجلسات وOAuth بشكل صحيح
+app.set('trust proxy', 1);
+
 app.use(session({
-    secret: 'SpiderProDashboardSecretKey9988',
+    secret: process.env.sessionSecret || config.sessionSecret || 'SpiderProDashboardSecretKey9988',
     resave: false,
     saveUninitialized: false
 }));
@@ -152,11 +163,5 @@ app.post('/api/save-all/:guildId', (req, res) => {
     res.json({ success: true });
 });
 
-// تسجيل دخول البوت والبدء
-if (BOT_TOKEN) {
-    client.login(BOT_TOKEN).catch(err => console.error("❌ فشل تسجيل دخول البوت:", err.message));
-} else {
-    console.error("⚠️ لم يتم العثور على Bot Token!");
-}
-
-app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+client.login(BOT_TOKEN);
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

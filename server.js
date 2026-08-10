@@ -1,49 +1,51 @@
 const express = require('express');
 const session = require('express-session');
 const passport = require('passport');
-const DiscordStrategy = require('passport-discord').Strategy;
+const { Strategy } = require('passport-discord');
+const { Pool } = require('pg');
 const path = require('path');
-const fs = require('fs');
-
-const {
-    initDatabase,
-    syncGuilds,
-    addGuild,
-    removeGuild,
-    getGuilds
-} = require('./database/db');
+const cors = require('cors');
 
 const app = express();
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 3000;
 
-// 🔑 المتغيرات السرية من Environment Variables
-const CLIENT_ID = process.env.CLIENT_ID || '1534954572743704717';
-const CLIENT_SECRET = process.env.CLIENT_SECRET || '';
-const CALLBACK_URL = process.env.CALLBACK_URL || 'https://spider-dashboard.onrender.com/auth/discord/callback';
+// 🔴 البيانات الأساسية
 const BOT_API_SECRET = process.env.BOT_API_SECRET || 'SpiderSecretAPIKey12345';
+const DATABASE_URL = process.env.DATABASE_URL;
 
-// Discord OAuth2
-passport.use(new DiscordStrategy({
-    clientID: CLIENT_ID,
-    clientSecret: CLIENT_SECRET,
-    callbackURL: CALLBACK_URL,
-    scope: ['identify', 'guilds']
-}, (accessToken, refreshToken, profile, done) => {
-    return done(null, profile);
-}));
+// 🔴 إعداد اتصال قاعدة البيانات PostgreSQL
+const pool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl: DATABASE_URL ? { rejectUnauthorized: false } : false
+});
 
-passport.serializeUser((user, done) => done(null, user));
-passport.deserializeUser((obj, done) => done(null, obj));
+// إنشاء الجداول تلقائياً عند التشغيل
+async function initDB() {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS guilds (
+                id VARCHAR(32) PRIMARY KEY,
+                prefix VARCHAR(10) DEFAULT '!',
+                settings JSONB DEFAULT '{}'::jsonb,
+                aliases JSONB DEFAULT '{}'::jsonb,
+                autoresponses JSONB DEFAULT '{}'::jsonb,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+        console.log("✅ قاعدة البيانات PostgreSQL جاهزة والمتطلبات مكتملة.");
+    } catch (err) {
+        console.error("❌ خطأ في إعداد قاعدة البيانات:", err.message);
+    }
+}
+initDB();
 
-// Express
+// Middlewares
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
 
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'SpiderProDashboardSecretKey9988',
+    secret: process.env.SESSION_SECRET || 'SpiderSuperSecretSessionKey123',
     resave: false,
     saveUninitialized: false
 }));
@@ -51,364 +53,143 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// مجلد JSON الحالي
-const dbDir = path.join(__dirname, 'database');
-if (!fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true });
+// Passport Config
+passport.serializeUser((user, done) => done(null, user));
+passport.deserializeUser((obj, done) => done(null, obj));
+
+if (process.env.CLIENT_ID && process.env.CLIENT_SECRET) {
+    passport.use(new Strategy({
+        clientID: process.env.CLIENT_ID,
+        clientSecret: process.env.CLIENT_SECRET,
+        callbackURL: process.env.CALLBACK_URL || 'https://spider-dashboard.onrender.com/auth/discord/callback',
+        scope: ['identify', 'guilds']
+    }, (accessToken, refreshToken, profile, done) => {
+        process.nextTick(() => done(null, profile));
+    }));
 }
 
-// Middleware لحماية الـ APIs السرية الخاصة بالبوت
-const verifyBotSecret = (req, res, next) => {
-    const secret = req.headers['x-bot-secret'] || req.headers['x-api-secret'] || req.query.secret;
+// حماية مسارات البوت
+function verifyBotSecret(req, res, next) {
+    const secret = req.headers['x-bot-secret'];
     if (secret !== BOT_API_SECRET) {
-        return res.status(403).json({ success: false, error: 'غير مصرح للبوت بالوصول' });
+        return res.status(401).json({ error: 'Unauthorized: Invalid Bot Secret' });
     }
     next();
-};
-
-// Authentication
-app.get('/auth/discord', passport.authenticate('discord'));
-
-app.get('/auth/discord/callback',
-    passport.authenticate('discord', {
-        failureRedirect: '/'
-    }),
-    (req, res) => {
-        res.redirect('/dashboard');
-    }
-);
-
-app.get('/logout', (req, res) => {
-    req.logout(() => {
-        res.redirect('/');
-    });
-});
-
-// الصفحة الرئيسية
-app.get('/', (req, res) => {
-    if (req.isAuthenticated()) {
-        return res.redirect('/dashboard');
-    }
-
-    res.send(`
-        <!DOCTYPE html>
-        <html lang="ar" dir="rtl">
-        <head>
-            <meta charset="UTF-8">
-            <title>Spider Pro - Dashboard</title>
-            <link rel="stylesheet" href="/style.css">
-        </head>
-        <body style="
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            height:100vh;
-            background:#0f0f15;
-            color:#fff;
-            font-family:sans-serif;
-        ">
-            <div style="
-                text-align:center;
-                background:#181824;
-                padding:40px;
-                border-radius:12px;
-                box-shadow:0 8px 24px rgba(0,0,0,0.5);
-            ">
-                <h1>🕷️ لوحة تحكم Spider Pro</h1>
-                <p style="color:#aaa;margin-bottom:30px;">
-                    قم بتسجيل الدخول للتحكم في إعدادات السيرفر والردود والاختصارات
-                </p>
-                <a
-                    href="/auth/discord"
-                    style="
-                        padding:12px 28px;
-                        background:#5865F2;
-                        color:#fff;
-                        text-decoration:none;
-                        border-radius:6px;
-                        font-weight:bold;
-                        display:inline-block;
-                    "
-                >
-                    تسجيل الدخول بواسطة ديسكورد
-                </a>
-            </div>
-        </body>
-        </html>
-    `);
-});
-
-// Dashboard
-app.get('/dashboard', async (req, res) => {
-
-    if (!req.isAuthenticated()) {
-        return res.redirect('/auth/discord');
-    }
-
-    // السيرفرات التي عند المستخدم صلاحية Manage Guild أو Administrator
-    const userGuildsRaw =
-        (req.user.guilds || []).filter(g =>
-            (g.permissions & 0x20) === 0x20 ||
-            (g.permissions & 0x8) === 0x8
-        );
-
-    // جلب قائمة أيديات السيرفرات المتواجد فيها البوت من PostgreSQL (Neon)
-    let botGuildIds = [];
-    try {
-        botGuildIds = await getGuilds();
-    } catch (err) {
-        console.error("❌ خطأ أثناء جلب سيرفرات البوت من PostgreSQL:", err);
-    }
-
-    // إضافة الخاصية botInstalled لكل سيرفر (true إذا كان البوت موجوداً)
-    const userGuilds = userGuildsRaw.map(guild => ({
-        ...guild,
-        botInstalled: botGuildIds.includes(guild.id)
-    }));
-
-    // نظام الاقتصاد الحالي بملف JSON بدون تعديل
-    const ecoPath = path.join(dbDir, 'economy.json');
-    let userBalance = 0;
-    let userRank = 'غير مصنف';
-
-    if (fs.existsSync(ecoPath)) {
-        try {
-            const ecoDb = JSON.parse(fs.readFileSync(ecoPath, 'utf8'));
-            let allUsers = [];
-
-            for (const [gId, members] of Object.entries(ecoDb)) {
-                for (const [mId, bal] of Object.entries(members)) {
-                    allUsers.push({
-                        userId: mId,
-                        balance: bal
-                    });
-                }
-            }
-
-            allUsers.sort((a, b) => b.balance - a.balance);
-
-            const foundIndex = allUsers.findIndex(u => u.userId === req.user.id);
-
-            if (foundIndex !== -1) {
-                userRank = foundIndex + 1;
-                userBalance = allUsers[foundIndex].balance;
-            }
-
-        } catch (e) {
-            console.error("خطأ في قراءة ملف الاقتصاد:", e);
-        }
-    }
-
-    res.render(
-        'dashboard',
-        {
-            user: req.user,
-            guilds: userGuilds,
-            userBalance,
-            userRank,
-            clientId: CLIENT_ID
-        }
-    );
-});
-
-// Guild dashboard
-app.get('/dashboard/:guildId', (req, res) => {
-
-    if (!req.isAuthenticated()) {
-        return res.redirect('/auth/discord');
-    }
-
-    const guildId = req.params.guildId;
-
-    const settingsPath = path.join(dbDir, `${guildId}_settings.json`);
-    const aliasesPath = path.join(dbDir, `${guildId}_aliases.json`);
-    const autoRespPath = path.join(dbDir, `${guildId}_autoresponses.json`);
-
-    let settings = {};
-    let aliases = {};
-    let autoresponses = {};
-
-    if (fs.existsSync(settingsPath)) {
-        settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-    }
-
-    if (fs.existsSync(aliasesPath)) {
-        aliases = JSON.parse(fs.readFileSync(aliasesPath, 'utf8'));
-    }
-
-    if (fs.existsSync(autoRespPath)) {
-        autoresponses = JSON.parse(fs.readFileSync(autoRespPath, 'utf8'));
-    }
-
-    res.render(
-        'guild',
-        {
-            user: req.user,
-            guildId,
-            settings,
-            aliases,
-            autoresponses
-        }
-    );
-});
-
-// Save dashboard settings
-app.post('/api/save-all/:guildId', (req, res) => {
-
-    if (!req.isAuthenticated()) {
-        return res.status(401).json({
-            success: false,
-            message: 'غير مصرح'
-        });
-    }
-
-    const guildId = req.params.guildId;
-
-    const { settings, aliases, autoresponses } = req.body;
-
-    try {
-        if (settings) {
-            fs.writeFileSync(
-                path.join(dbDir, `${guildId}_settings.json`),
-                JSON.stringify(settings, null, 4)
-            );
-        }
-
-        if (aliases) {
-            fs.writeFileSync(
-                path.join(dbDir, `${guildId}_aliases.json`),
-                JSON.stringify(aliases, null, 4)
-            );
-        }
-
-        if (autoresponses) {
-            fs.writeFileSync(
-                path.join(dbDir, `${guildId}_autoresponses.json`),
-                JSON.stringify(autoresponses, null, 4)
-            );
-        }
-
-        console.log(`[إعدادات] تم التحديث للسيرفر: ${guildId}`);
-
-        res.json({
-            success: true,
-            message: 'تم حفظ جميع الإعدادات بنجاح!'
-        });
-
-    } catch (err) {
-        console.error("خطأ أثناء حفظ البيانات:", err);
-
-        res.status(500).json({
-            success: false,
-            message: 'حدث خطأ أثناء الحفظ'
-        });
-    }
-});
+}
 
 // ==========================================
-// 🤖 PostgreSQL Bot Guilds APIs
+// 📌 مسارات البوت (API Endpoints)
 // ==========================================
 
-// 1. POST /api/bot/guilds/sync
+// 1. مزامنة جميع السيرفرات (POST)
 app.post('/api/bot/guilds/sync', verifyBotSecret, async (req, res) => {
     const { guildIds } = req.body;
     if (!Array.isArray(guildIds)) {
-        return res.status(400).json({ success: false, message: 'مصفوفة guildIds مطلوبة' });
+        return res.status(400).json({ error: 'Invalid guildIds array' });
     }
 
     try {
-        await syncGuilds(guildIds);
-        res.json({ success: true, count: guildIds.length });
+        for (const guildId of guildIds) {
+            await pool.query(
+                `INSERT INTO guilds (id) VALUES ($1) ON CONFLICT (id) DO NOTHING`,
+                [guildId]
+            );
+        }
+        console.log(`[DB SYNC] تم مزامنة ${guildIds.length} سيرفر بنجاح.`);
+        return res.json({ success: true, count: guildIds.length });
     } catch (err) {
-        console.error("❌ خطأ أثناء مزامنة السيرفرات:", err);
-        res.status(500).json({ success: false, error: err.message });
+        console.error("❌ خطأ في مزامنة السيرفرات:", err.message);
+        return res.status(500).json({ error: 'Database sync error' });
     }
 });
 
-// 2. POST /api/bot/guild
+// دعم للمسار القديم في حال الطلب برابط مختلف
+app.post('/api/bot/sync-guilds', verifyBotSecret, async (req, res) => {
+    const { guildIds } = req.body;
+    if (!Array.isArray(guildIds)) {
+        return res.status(400).json({ error: 'Invalid guildIds array' });
+    }
+    try {
+        for (const guildId of guildIds) {
+            await pool.query(
+                `INSERT INTO guilds (id) VALUES ($1) ON CONFLICT (id) DO NOTHING`,
+                [guildId]
+            );
+        }
+        return res.json({ success: true, count: guildIds.length });
+    } catch (err) {
+        return res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// 2. إدخال سيرفر واحد عند الدخول
 app.post('/api/bot/guild', verifyBotSecret, async (req, res) => {
     const { guildId } = req.body;
-    if (!guildId) {
-        return res.status(400).json({ success: false, message: 'guildId مطلوب' });
-    }
+    if (!guildId) return res.status(400).json({ error: 'Guild ID required' });
 
     try {
-        await addGuild(guildId);
-        console.log(`[PostgreSQL] ➕ تم إضافة السيرفر: ${guildId}`);
-        res.json({ success: true });
+        await pool.query(
+            `INSERT INTO guilds (id) VALUES ($1) ON CONFLICT (id) DO NOTHING`,
+            [guildId]
+        );
+        return res.json({ success: true });
     } catch (err) {
-        console.error("❌ خطأ إضافة السيرفر:", err);
-        res.status(500).json({ success: false, error: err.message });
+        return res.status(500).json({ error: err.message });
     }
 });
 
-// 3. DELETE /api/bot/guild/:guildId
+// 3. حذف سيرفر عند الخروج
 app.delete('/api/bot/guild/:guildId', verifyBotSecret, async (req, res) => {
     const { guildId } = req.params;
-
     try {
-        await removeGuild(guildId);
-        console.log(`[PostgreSQL] ➖ تم حذف السيرفر: ${guildId}`);
-        res.json({ success: true });
+        await pool.query(`DELETE FROM guilds WHERE id = $1`, [guildId]);
+        return res.json({ success: true });
     } catch (err) {
-        console.error("❌ خطأ حذف السيرفر:", err);
-        res.status(500).json({ success: false, error: err.message });
+        return res.status(500).json({ error: err.message });
     }
 });
 
-// Bot API (قراءة الإعدادات القديم)
-app.get('/api/bot/settings/:guildId', (req, res) => {
-
-    const authHeader = req.headers['x-api-secret'] || req.headers['x-bot-secret'];
-
-    if (
-        authHeader !== BOT_API_SECRET &&
-        req.query.secret !== BOT_API_SECRET
-    ) {
-        return res.status(403).json({
-            error: 'غير مصرح للبوت بقراءة البيانات'
+// 4. جلب إعدادات سيرفر معين للبوت
+app.get('/api/bot/settings/:guildId', verifyBotSecret, async (req, res) => {
+    const { guildId } = req.params;
+    try {
+        const result = await pool.query(`SELECT * FROM guilds WHERE id = $1`, [guildId]);
+        if (result.rows.length === 0) {
+            return res.json({ settings: {}, aliases: {}, autoresponses: {} });
+        }
+        const row = result.rows[0];
+        return res.json({
+            prefix: row.prefix,
+            settings: row.settings || {},
+            aliases: row.aliases || {},
+            autoresponses: row.autoresponses || {}
         });
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
     }
-
-    const guildId = req.params.guildId;
-
-    const settingsPath = path.join(dbDir, `${guildId}_settings.json`);
-    const aliasesPath = path.join(dbDir, `${guildId}_aliases.json`);
-    const autoRespPath = path.join(dbDir, `${guildId}_autoresponses.json`);
-
-    const settings = fs.existsSync(settingsPath)
-        ? JSON.parse(fs.readFileSync(settingsPath, 'utf8'))
-        : {};
-
-    const aliases = fs.existsSync(aliasesPath)
-        ? JSON.parse(fs.readFileSync(aliasesPath, 'utf8'))
-        : {};
-
-    const autoresponses = fs.existsSync(autoRespPath)
-        ? JSON.parse(fs.readFileSync(autoRespPath, 'utf8'))
-        : {};
-
-    res.json({
-        guildId,
-        settings,
-        aliases,
-        autoresponses
-    });
 });
 
-// PostgreSQL initialization
-initDatabase()
-    .then(() => {
-        console.log('✅ PostgreSQL connected successfully');
-    })
-    .catch(error => {
-        console.error('❌ PostgreSQL connection failed:', error);
-    });
+// ==========================================
+// 🌐 مسارات الموقع والـ OAuth2
+// ==========================================
 
-// Start server
+app.get('/', (req, res) => {
+    res.send('Spider Dashboard Server is Running!');
+});
+
+app.get('/auth/discord', passport.authenticate('discord'));
+
+app.get('/auth/discord/callback', passport.authenticate('discord', {
+    failureRedirect: '/'
+}), (req, res) => {
+    res.redirect('/dashboard');
+});
+
+app.get('/dashboard', (req, res) => {
+    if (!req.isAuthenticated()) return res.redirect('/auth/discord');
+    res.json({ message: "مرحباً بك في لوحة التحكم", user: req.user });
+});
+
 app.listen(PORT, () => {
-    console.log('=================================');
-    console.log('🌐 سيرفر الداشبورد يعمل بنجاح على Render!');
-    console.log(`📡 المنفذ الحالي: ${PORT}`);
-    console.log('=================================');
+    console.log(`🚀 السيرفر يعمل على المنفذ: ${PORT}`);
 });

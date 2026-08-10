@@ -2,46 +2,20 @@ const express = require('express');
 const session = require('express-session');
 const passport = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
-const { Client, GatewayIntentBits } = require('discord.js');
 const path = require('path');
 const fs = require('fs');
 
-const config = require('./config.json');
-
 const app = express();
-const PORT = process.env.SERVER_PORT || process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 
-// إعداد بوت البوت (Discord.js Client)
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-    ]
-});
+// 🔴 المفاتيح الأساسية
+const CLIENT_ID = process.env.CLIENT_ID || '1534954572743704717';
+const CLIENT_SECRET = process.env.CLIENT_SECRET || 'G3NTaJvG35Dwa6_IqMtSs0IkS9Nt-D1E';
+const BOT_TOKEN = process.env.BOT_TOKEN || 'MTUzNDk1NDU3Mjc0MzcwNDcxNw.GzvmkW.E1aj7gnwRQrft-bI7-H3JDmb-GVO2jdRBGiFBY'; 
+const CALLBACK_URL = 'https://dashbord-46or.onrender.com/auth/discord/callback';
+const BOT_API_SECRET = 'SpiderSecretAPIKey12345';
 
-// نقرأ القيم الحقيقية من config.json (أو متغيرات البيئة إن وجدت) بدل القيم الوهمية الثابتة
-const CLIENT_ID = config.clientId;
-const CLIENT_SECRET = config.clientSecret;
-const CALLBACK_URL = process.env.callbackURL || process.env.CALLBACK_URL || config.callbackURL;
-const BOT_TOKEN = process.env.token || process.env.BOT_TOKEN || process.env.TOKEN || config.token;
-
-// تحقق مبكر وواضح بدل ما يفشل الكود بصمت لاحقاً
-if (!CLIENT_ID || CLIENT_ID.includes('YOUR_')) {
-    console.error('❌ خطأ فادح: clientId غير موجود أو لا يزال قيمة افتراضية في config.json.');
-}
-if (!CLIENT_SECRET || CLIENT_SECRET.includes('YOUR_')) {
-    console.error('❌ خطأ فادح: clientSecret غير موجود أو لا يزال قيمة افتراضية في config.json.');
-}
-if (!BOT_TOKEN || BOT_TOKEN.includes('YOUR_') || BOT_TOKEN === '1') {
-    console.error('❌ خطأ فادح: التوكن غير موجود أو لا يزال قيمة افتراضية.');
-}
-if (!CALLBACK_URL || CALLBACK_URL.includes('localhost')) {
-    console.warn('⚠️ تحذير: callbackURL لا يزال يشير إلى localhost، تأكد من ضبطه في config.json ليطابق رابط الاستضافة الحقيقي.');
-}
-
-// إعدادات الباسبورت (Passport Discord Strategy)
+// إعداد المصادقة عبر ديسكورد
 passport.use(new DiscordStrategy({
     clientID: CLIENT_ID,
     clientSecret: CLIENT_SECRET,
@@ -54,16 +28,15 @@ passport.use(new DiscordStrategy({
 passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((obj, done) => done(null, obj));
 
+// إعدادات Express
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
-
-// ضروري خلف أي بروكسي عكسي (wispbyte / render وغيرها) حتى تعمل الجلسات وOAuth بشكل صحيح
-app.set('trust proxy', 1);
+app.set('views', path.join(__dirname, 'views'));
 
 app.use(session({
-    secret: process.env.sessionSecret || config.sessionSecret || 'SpiderProDashboardSecretKey9988',
+    secret: 'SpiderProDashboardSecretKey9988',
     resave: false,
     saveUninitialized: false
 }));
@@ -71,12 +44,16 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// مجلد قاعدة البيانات الوهمية (JSON)
+// إنشاء مجلد قاعدة البيانات المحلية
 const dbDir = path.join(__dirname, 'database');
-if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir);
+if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
 
-// مسارات المصادقة
+// ==========================================
+// 🔑 مسارات الدخول والتسجيل
+// ==========================================
+
 app.get('/auth/discord', passport.authenticate('discord'));
+
 app.get('/auth/discord/callback', passport.authenticate('discord', {
     failureRedirect: '/'
 }), (req, res) => {
@@ -89,18 +66,66 @@ app.get('/logout', (req, res) => {
     });
 });
 
+// الصفحة الرئيسية
 app.get('/', (req, res) => {
     if (req.isAuthenticated()) return res.redirect('/dashboard');
-    res.send(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>Spider Pro</title><link rel="stylesheet" href="/style.css"></head><body style="display:flex;justify-content:center;align-items:center;height:100vh;"><div style="text-align:center;"><h1>🕷️ مرحبا بك في لوحة تحكم Spider Pro</h1><br><a href="/auth/discord" class="btn-neon">تسجيل الدخول بواسطة ديسكورد</a></div></body></html>`);
+    res.send(`
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <title>Spider Pro - Dashboard</title>
+            <link rel="stylesheet" href="/style.css">
+        </head>
+        <body style="display:flex;justify-content:center;align-items:center;height:100vh;background:#0f0f15;color:#fff;font-family:sans-serif;">
+            <div style="text-align:center;background:#181824;padding:40px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.5);">
+                <h1>🕷️ لوحة تحكم Spider Pro</h1>
+                <p style="color:#aaa;margin-bottom:30px;">قم بتسجيل الدخول للتحكم في إعدادات السيرفر والردود والاختصارات</p>
+                <a href="/auth/discord" style="padding:12px 28px;background:#5865F2;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;">تسجيل الدخول بواسطة ديسكورد</a>
+            </div>
+        </body>
+        </html>
+    `);
 });
 
-// 📊 الصفحة الرئيسية (الرصيد + الترتيب + السيرفرات الجانبية)
-app.get('/dashboard', (req, res) => {
+// ==========================================
+// 📊 مسارات لوحة التحكم (Dashboard)
+// ==========================================
+
+app.get('/dashboard', async (req, res) => {
     if (!req.isAuthenticated()) return res.redirect('/auth/discord');
     
-    const userGuilds = req.user.guilds.filter(g => (g.permissions & 0x20) === 0x20);
-    const botGuilds = userGuilds.map(g => ({ ...g, botIn: client.guilds.cache.has(g.id) }));
+    // 1. فلترة سيرفرات المستخدم
+    const userGuilds = (req.user.guilds || []).filter(g => (g.permissions & 0x20) === 0x20 || (g.permissions & 0x8) === 0x8);
 
+    // 2. جلب قائمة السيرفرات التي ينتمي إليها البوت عبر Discord API
+    let botGuildIds = [];
+    try {
+        const tokenToUse = BOT_TOKEN || process.env.BOT_TOKEN;
+        if (tokenToUse) {
+            const response = await fetch('https://discord.com/api/v10/users/@me/guilds', {
+                headers: { Authorization: `Bot ${tokenToUse.trim()}` }
+            });
+            if (response.ok) {
+                const botGuilds = await response.json();
+                botGuildIds = botGuilds.map(g => g.id);
+            }
+        }
+    } catch (err) {
+        console.error("خطأ في جلب سيرفرات البوت:", err);
+    }
+
+    // 3. مطابقة السيرفرات
+    const processedGuilds = userGuilds.map(guild => {
+        return {
+            ...guild,
+            hasBot: botGuildIds.includes(guild.id)
+        };
+    });
+
+    const activeGuildsCount = botGuildIds.length;
+
+    // 4. جلب بيانات الاقتصاد والترتيب
     const ecoPath = path.join(dbDir, 'economy.json');
     let userBalance = 0;
     let userRank = 'غير مصنف';
@@ -121,47 +146,82 @@ app.get('/dashboard', (req, res) => {
                 userRank = foundIndex + 1;
                 userBalance = allUsers[foundIndex].balance;
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error("خطأ في قراءة ملف الاقتصاد:", e);
+        }
     }
 
-    res.render('dashboard', { user: req.user, guilds: botGuilds, userBalance, userRank });
+    res.render('dashboard', { 
+        user: req.user, 
+        guilds: processedGuilds, 
+        activeGuildsCount,
+        userBalance, 
+        userRank 
+    });
 });
 
-// 🛠️ صفحة إدارة السيرفر المخصصة
+// صفحة إدارة سيرفر معين
 app.get('/dashboard/:guildId', (req, res) => {
     if (!req.isAuthenticated()) return res.redirect('/auth/discord');
     
     const guildId = req.params.guildId;
-    const guild = client.guilds.cache.get(guildId);
-    if (!guild) return res.send('السيرفر غير موجود أو أن البوت ليس بداخله!');
 
     const settingsPath = path.join(dbDir, `${guildId}_settings.json`);
     const aliasesPath = path.join(dbDir, `${guildId}_aliases.json`);
+    const autoRespPath = path.join(dbDir, `${guildId}_autoresponses.json`);
 
     let settings = {};
     let aliases = {};
+    let autoresponses = {};
 
     if (fs.existsSync(settingsPath)) settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
     if (fs.existsSync(aliasesPath)) aliases = JSON.parse(fs.readFileSync(aliasesPath, 'utf8'));
+    if (fs.existsSync(autoRespPath)) autoresponses = JSON.parse(fs.readFileSync(autoRespPath, 'utf8'));
 
-    res.render('guild', { user: req.user, guild, settings, aliases });
+    res.render('guild', { user: req.user, guildId, settings, aliases, autoresponses });
 });
 
-// 💾 حفظ البيانات من الداشبورد
+// حفظ الإعدادات
 app.post('/api/save-all/:guildId', (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ success: false });
+    if (!req.isAuthenticated()) return res.status(401).json({ success: false, message: 'غير مصرح' });
 
     const guildId = req.params.guildId;
-    const { settings, aliases } = req.body;
+    const { settings, aliases, autoresponses } = req.body;
 
-    const settingsPath = path.join(dbDir, `${guildId}_settings.json`);
-    const aliasesPath = path.join(dbDir, `${guildId}_aliases.json`);
+    try {
+        if (settings) fs.writeFileSync(path.join(dbDir, `${guildId}_settings.json`), JSON.stringify(settings, null, 4));
+        if (aliases) fs.writeFileSync(path.join(dbDir, `${guildId}_aliases.json`), JSON.stringify(aliases, null, 4));
+        if (autoresponses) fs.writeFileSync(path.join(dbDir, `${guildId}_autoresponses.json`), JSON.stringify(autoresponses, null, 4));
 
-    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 4));
-    fs.writeFileSync(aliasesPath, JSON.stringify(aliases, null, 4));
-
-    res.json({ success: true });
+        res.json({ success: true, message: 'تم حفظ جميع الإعدادات بنجاح!' });
+    } catch (err) {
+        console.error("خطأ أثناء حفظ البيانات:", err);
+        res.status(500).json({ success: false, message: 'حدث خطأ أثناء الحفظ' });
+    }
 });
 
-client.login(BOT_TOKEN);
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+// ==========================================
+// 🤖 API الخاص بالبوت
+// ==========================================
+
+app.get('/api/bot/settings/:guildId', (req, res) => {
+    const authHeader = req.headers['x-api-secret'];
+    if (authHeader !== BOT_API_SECRET && req.query.secret !== BOT_API_SECRET) {
+        return res.status(403).json({ error: 'غير مصرح' });
+    }
+
+    const guildId = req.params.guildId;
+    const settingsPath = path.join(dbDir, `${guildId}_settings.json`);
+    const aliasesPath = path.join(dbDir, `${guildId}_aliases.json`);
+    const autoRespPath = path.join(dbDir, `${guildId}_autoresponses.json`);
+
+    const settings = fs.existsSync(settingsPath) ? JSON.parse(fs.readFileSync(settingsPath, 'utf8')) : {};
+    const aliases = fs.existsSync(aliasesPath) ? JSON.parse(fs.readFileSync(aliasesPath, 'utf8')) : {};
+    const autoresponses = fs.existsSync(autoRespPath) ? JSON.parse(fs.readFileSync(autoRespPath, 'utf8')) : {};
+
+    res.json({ guildId, settings, aliases, autoresponses });
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🌐 سيرفر الداشبورد يعمل بنجاح على المنفذ ${PORT}`);
+});
